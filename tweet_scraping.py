@@ -39,9 +39,9 @@ def getAPI():
 # Returns list of tweet IDs corresponding to a given query (user or keyword)
 # CITATION: Adapted from snscrape-twitter (1)
 def getTweetIDs(userOrSearch, query, since):
-    tweetIDs = []
+    tweetIDs = set()
     # Ensure we are searching a valid keyword
-    if len(keyword) > 0:
+    if len(query) > 0:
         print(f'Scraping tweets with keyword: "{query}" ...')
         try:
             # CITATION: these next two lines are from Salty Crane (2)
@@ -52,7 +52,7 @@ def getTweetIDs(userOrSearch, query, since):
                 # Discard front part of URL
                 temp = line.decode().split("status/")
                 tempStr = temp[1]
-                tweetIDs.append(tempStr[:-1]) # discard \n character and append to result list
+                tweetIDs.add(tempStr[:-1]) # discard \n character and append to result list
         except Exception as err:
             print(f"SNSCRAPE ERROR: {err}")
         
@@ -61,17 +61,17 @@ def getTweetIDs(userOrSearch, query, since):
 
 # Returns list of tweets (text and shortened URL)
 def getTweets(userOrSearch, query, since):
-    tweets = [] 
+    tweets = set() 
     twitterAPI = getAPI()
     tweetIDs = getTweetIDs(userOrSearch, query, since)
     for singleID in tweetIDs:
-        tweets.append(twitterAPI.get_status(singleID).text)
+        tweets.add(twitterAPI.get_status(singleID).text)
     return tweets
 
 # Passes a keyword and a list of tweets from a user since a specific date
 # Returns number of tweets from the user (since the date) that matches the keyword
 def countTweetsWithUser(user, keyword, since):
-    tweets = getTweetIDs("user", user, since)
+    tweets = getTweets("user", user, since)
     counts = 0
     for tweet in tweets:
         # search isn't case sensitive
@@ -82,4 +82,4 @@ def countTweetsWithUser(user, keyword, since):
 # Returns number of tweets under a specific query
 def countTweets(userOrSearch, query, since):
     tweets = getTweetIDs(userOrSearch, query, since)
-    return len(tweets)s
+    return len(tweets)
