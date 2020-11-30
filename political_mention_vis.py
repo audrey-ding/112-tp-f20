@@ -76,7 +76,7 @@ def mousePressed(app, event):
 def pointInCircle(x0, y0, x1, y1, r):
    return ((x1 - x0)**2 + (y1 - y0)**2)**0.5 <= r
     
-def drawIndividualFrameWork(app, canvas):
+def drawIndividualFramework(app, canvas):
     # Cover canvas
     canvas.create_rectangle(0, 0, app.width, app.height, fill="white")
     # Draw title 
@@ -152,5 +152,5 @@ def drawButtons(app, canvas):
 def redrawAll(app, canvas):
     drawButtons(app, canvas)
     if app.buttonClicked:
-        drawIndividualFrameWork(app, canvas)
+        drawIndividualFramework(app, canvas)
         drawIndividualPlot(app, canvas)
