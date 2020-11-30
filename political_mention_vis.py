@@ -68,68 +68,58 @@ def greatestCount(app):
 
 def mousePressed(app, event):
     for button in app.buttons:
-        print("hello?")
         if pointInCircle(event.x, event.y, button.x, button.y, button.r):
             app.buttonClicked = True
             app.currButton = button
-            print("did it")
+            print("YES")
 
 def pointInCircle(x0, y0, x1, y1, r):
    return ((x1 - x0)**2 + (y1 - y0)**2)**0.5 <= r
     
-def drawIndividual(app, canvas):
+def drawIndividualFrameWork(app, canvas):
     # Cover canvas
     canvas.create_rectangle(0, 0, app.width, app.height, fill="white")
     # Draw title 
-    title = f"{app.currButton.politician.name}'s tweets about {app.keyword}"
-    canvas.create_text(app.width / 2, app.height + 50, text=title, 
-                       font="Arial 18 bold")
-    margin = 20 # 20 px margin on sides and bottom
-    topMargin = 70 # to leave room for the title
+    title = f"{app.currButton.politician.name}'s tweets on \"{app.keyword}\""
+    canvas.create_text(app.width / 2, 50, text=title, font="Arial 18 bold")
+    margin = 50 # 50 px margin on sides and bottom
+    topMargin = 100 # to leave room for the title
     # Draw plot frame with margins
     canvas.create_rectangle(margin, topMargin, app.width - margin, 
-                            app.height - topMargin) 
+                            app.height - margin) 
 
+def drawIndividualPlot(app, canvas):
+    margin = 50
+    topMargin = 100
     plotWidth = app.width - margin * 2
     plotHeight = app.height - margin - topMargin 
 
     # Datetime implementation from
     # https://www.w3resource.com/python-exercises/date-time-exercise/python-date-time-exercise-5.php
-    yesterday = date.today() - timedelta(1) # "since" arg is exclusive
-    count = countTweetsWithUser(app.currButton.politician.username, app.keyword, str(yesterday))
-    yLabel = int(math.ceil(count / 10) * 10)
-    # Draw yLabel on y axis 
-    canvas.create_text(margin - 10, topMargin, text=yLabel, font="Arial 12")
-    # Draw label on x axis
-    canvas.create_text(app.width - margin, app.height - margin / 2, text="today",
-                      font="Arial 10")
-
-    # Although it's repetitive to do this here instead of in the loop,
-    #   I don't want to call countTweetsWithUser more times than I need to b/c
-    #   Twitter API has a limit to how many tweets can be scraped per 15 min
-    # Coordinates of first dot for tweets since yesterday (== from today)
-    x = plotWidth 
-    y = int((count / yLabel) * plotHeight)
-    # Draw the dot
-    canvas.create_oval(x - 5 + margin , y - 5 + topMargin, x + 5 + margin, 
-                       y + 5 + topMargin)
-
+    thirtyDaysAgo = date.today() - timedelta(31) # "since" arg is exclusive
+    
     # Calculate the other counts and draw their dots
-    widthIndex = 1
-    for i in range(5, 30, 5):
+    widthIndex = 0
+    yLabel = 0
+    for i in range(0, 30, 5):
         # Get since date and find count
-        dt = yesterday - timedelta(i)
+        dt = thirtyDaysAgo + timedelta(i)
         count = countTweetsWithUser(app.currButton.politician.username, app.keyword, str(dt))
-        x = app.width - int(plotWidth / 6) * widthIndex - margin
-        y = int((count / yLabel) * plotHeight)
+        if i == 0: # largest possible value, so set y axis scale
+            yLabel = int(math.ceil(count / 10) * 10)
+            # Draw yLabel on y axis 
+            canvas.create_text(margin - 10, topMargin, text=yLabel, font="Arial 12")
+
+        x = int(plotWidth / 6) * widthIndex + margin
+        y = int((count / yLabel) * plotHeight) + topMargin
 
         # Draw label on x axis 
-        xLabel = f"{i} days ago"
+        days = 30 - i
+        xLabel = f"{days} days ago"
         canvas.create_text(x, app.height - margin / 2, text=xLabel, font="Arial 10")
 
         # Draw dot
-        canvas.create_oval(x - 5 + margin , y - 5 + topMargin, x + 5 + margin, 
-                           y + 5 + topMargin)
+        canvas.create_oval(x - 5, y - 5, x + 5, y + 5)
 
         widthIndex += 1
 
@@ -162,4 +152,5 @@ def drawButtons(app, canvas):
 def redrawAll(app, canvas):
     drawButtons(app, canvas)
     if app.buttonClicked:
-        drawIndividual(app, canvas)
+        drawIndividualFrameWork(app, canvas)
+        drawIndividualPlot(app, canvas)
