@@ -1,9 +1,5 @@
 # Audrey Ding @alding
 
-# CITATION LIST:
-# (1) https://github.com/cedoard/snscrape_twitter 
-# (2) https://www.saltycrane.com/blog/2008/09/how-get-stdout-and-stderr-using-python-subprocess-module/
-
 # REFERENCE LIST: (didn't use directly but referred to)
 # http://docs.tweepy.org/en/latest/index.html
 # https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/tweet
@@ -19,7 +15,7 @@ from tweepy import RateLimitError
 from subprocess import Popen, PIPE, STDOUT
 
 # Gets and returns Twitter API 
-# CITATION: from snscrape-twitter (1)
+# From https://github.com/cedoard/snscrape_twitter  
 def getAPI():
     # Get Twitter auth keys from json file
     twitterAuthData = open("twitter_auth_data.json").read()
@@ -37,14 +33,15 @@ def getAPI():
     return api
 
 # Returns list of tweet IDs corresponding to a given query (user or keyword)
-# CITATION: Adapted from snscrape-twitter (1)
+# Adapted from https://github.com/cedoard/snscrape_twitter 
 def getTweetIDs(userOrSearch, query, since):
     tweetIDs = set()
     # Ensure we are searching a valid keyword
     if len(query) > 0:
         print(f'Scraping tweets with keyword: "{query}" ...')
         try:
-            # CITATION: these next two lines are from Salty Crane (2)
+            # These next two lines are from:
+            # https://www.saltycrane.com/blog/2008/09/how-get-stdout-and-stderr-using-python-subprocess-module/
             # Runs command line
             cmd = f"snscrape --since {since} twitter-{userOrSearch} {query}" 
             p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True) 

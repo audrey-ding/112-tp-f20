@@ -1,4 +1,5 @@
 class Politician(object):
+    # A Politician has a name, Twitter username, and party
     def __init__(self, name, username, party):
         self.name = name
         self.party = party # "red" or "blue"
@@ -9,11 +10,10 @@ class Politician(object):
     def setCount(self, count):
         self.count = count
 
-    def setButton(self, button):
-        self.button = button
-
 class Button(object):
-    def __init__(self, cx, cy, r):
-        self.cx = cx
-        self.cy = cy
+    # A Button has a center, radius, and Politician object 
+    def __init__(self, x, y, r, politician):
+        self.x = x
+        self.y = y
         self.r = r
+        self.politician = politician
