@@ -36,17 +36,17 @@ def getAPI():
 
     return api
 
-# Returns list of tweet IDs corresponding to a given keyword (user or search query)
+# Returns list of tweet IDs corresponding to a given query (user or keyword)
 # CITATION: Adapted from snscrape-twitter (1)
-def getTweetIDs(userOrSearch, keyword, since):
+def getTweetIDs(userOrSearch, query, since):
     tweetIDs = []
     # Ensure we are searching a valid keyword
     if len(keyword) > 0:
-        print(f'Scraping tweets with keyword: "{keyword}" ...')
+        print(f'Scraping tweets with keyword: "{query}" ...')
         try:
             # CITATION: these next two lines are from Salty Crane (2)
             # Runs command line
-            cmd = f"snscrape --since {since} twitter-{userOrSearch} {keyword}" 
+            cmd = f"snscrape --since {since} twitter-{userOrSearch} {query}" 
             p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True) 
             for line in p.stdout:
                 # Discard front part of URL
@@ -60,12 +60,26 @@ def getTweetIDs(userOrSearch, keyword, since):
     return tweetIDs
 
 # Returns list of tweets (text and shortened URL)
-def getTweets(userOrSearch, keyword, since):
+def getTweets(userOrSearch, query, since):
     tweets = [] 
     twitterAPI = getAPI()
-    tweetIDs = getTweetIDs(userOrSearch, keyword, since)
+    tweetIDs = getTweetIDs(userOrSearch, query, since)
     for singleID in tweetIDs:
         tweets.append(twitterAPI.get_status(singleID).text)
-
     return tweets
-        
+
+# Passes a keyword and a list of tweets from a user since a specific date
+# Returns number of tweets from the user (since the date) that matches the keyword
+def countTweetsWithUser(user, keyword, since):
+    tweets = getTweetIDs("user", user, since)
+    counts = 0
+    for tweet in tweets:
+        # search isn't case sensitive
+        if keyword.lower() in tweet.lower(): 
+            counts += 1
+    return counts
+
+# Returns number of tweets under a specific query
+def countTweets(userOrSearch, query, since):
+    tweets = getTweetIDs(userOrSearch, query, since)
+    return len(tweets)s
