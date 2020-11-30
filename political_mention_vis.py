@@ -22,3 +22,5 @@ def redrawAll(app, canvas):
     canvas.create_text(400, 150, text=title)
     canvas.create_text(400, 200, text=app.randTweet)
 
+#HELLO
+
