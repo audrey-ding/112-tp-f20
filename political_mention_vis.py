@@ -153,4 +153,4 @@ def redrawAll(app, canvas):
     drawButtons(app, canvas)
     if app.buttonClicked:
         drawIndividualFramework(app, canvas)
-        drawIndividualPlot(app, canvas)
+        # drawIndividualPlot(app, canvas)
