@@ -59,7 +59,6 @@ def drawIndividualPlot(app, canvas):
     topMargin = 100
     plotWidth = app.width - margin * 2
     plotHeight = app.height - margin - topMargin 
-    
 
     maxCount = max(app.plotValues) # largest count that determines y axis scale
     yLabel = int(math.ceil(maxCount / 10) * 10) # round to nearest ten for label
