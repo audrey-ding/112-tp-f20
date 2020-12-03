@@ -42,7 +42,7 @@ def appStarted(app):
     # app.randTweet = app.tweets[randomIndex]
 
     app.keyword = "election"
-    app.since = "2020-11-25"
+    app.since = "2020-11-30"
     getCounts(app)
     app.maxCount = greatestCount(app)
     
@@ -93,35 +93,53 @@ def drawIndividualPlot(app, canvas):
     topMargin = 100
     plotWidth = app.width - margin * 2
     plotHeight = app.height - margin - topMargin 
-
-    # Datetime implementation from
-    # https://www.w3resource.com/python-exercises/date-time-exercise/python-date-time-exercise-5.php
-    thirtyDaysAgo = date.today() - timedelta(31) # "since" arg is exclusive
     
-    # Calculate the other counts and draw their dots
-    widthIndex = 0
-    yLabel = 0
-    for i in range(0, 30, 5):
-        # Get since date and find count
-        dt = thirtyDaysAgo + timedelta(i)
-        count = countTweetsWithUser(app.currButton.politician.username, app.keyword, str(dt))
-        if i == 0: # largest possible value, so set y axis scale
-            yLabel = int(math.ceil(count / 10) * 10)
-            # Draw yLabel on y axis 
-            canvas.create_text(margin - 10, topMargin, text=yLabel, font="Arial 12")
+    (counts, today) = calculatePlotCounts(app)
+    maxCount = max(counts) # largest count that determines y axis scale
+    yLabel = int(math.ceil(maxCount / 10) * 10) # round to nearest ten for label
+    # Draw yLabel on y axis
+    canvas.create_text(margin - 10, topMargin, text=yLabel, font="Arial 12")
 
-        x = int(plotWidth / 6) * widthIndex + margin
-        y = int((count / yLabel) * plotHeight) + topMargin
-
+    for i in range(len(counts)):
+        x = int(plotWidth / len(counts)) * i + margin
+        y = int((counts[i] / yLabel) * plotHeight) + topMargin
         # Draw label on x axis 
         days = 30 - i
         xLabel = f"{days} days ago"
-        canvas.create_text(x, app.height - margin / 2, text=xLabel, font="Arial 10")
+        canvas.create_text(x, app.height - margin / 2, text=xLabel, font="Arial 12")
 
         # Draw dot
         canvas.create_oval(x - 5, y - 5, x + 5, y + 5)
+    
+    # Draw point for today
+    x = plotWidth + margin
+    y = int((today / yLabel) * plotHeight) + topMargin
+    # Draw x label
+    canvas.create_text(x, app.height - margin / 2, text="today", font="Arial 12")
+    # Draw dot
+    canvas.create_oval(x - 5, y - 5, x + 5, y + 5)
 
-        widthIndex += 1
+# Calculates 5-day-increment tweet frequencies (y-values to be plotted)
+# Returns list of y-values to be plotted and today's frequency
+#   Return today's frequency here to minimize how many times we scrape
+def calculatePlotCounts(app):
+    # Datetime implementation from
+    # https://www.w3resource.com/python-exercises/date-time-exercise/python-date-time-exercise-5.php
+    thirtyDaysAgo = date.today() - timedelta(31) # "since" arg is exclusive
+    cumulative = []
+    # Get cumulative counts for since 30 days ago, 25, 20, 15, ...
+    for i in range(0, 30, 5):
+        # Get since date and find cumulative count
+        dt = thirtyDaysAgo + timedelta(i)
+        count = countTweetsWithUser(app.currButton.politician.username, app.keyword, str(dt))
+        cumulative.append(count)
+
+    differences = []
+    for j in range(len(cumulative) - 1):
+        differences.append(cumulative[j] - cumulative[j + 1])
+
+    return (differences, cumulative[0])
+
 
 def makeButtons(app):
     cellWidth = int(app.width / 5)
@@ -153,4 +171,4 @@ def redrawAll(app, canvas):
     drawButtons(app, canvas)
     if app.buttonClicked:
         drawIndividualFramework(app, canvas)
-        # drawIndividualPlot(app, canvas)
+        drawIndividualPlot(app, canvas)
