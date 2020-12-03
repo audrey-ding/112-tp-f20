@@ -163,7 +163,7 @@ def drawButtons(app, canvas):
         y = button.y
         r = button.r
         # Draw buttons
-        canvas.create_oval(x - r, y - r, x + r, y + r, fill=button.politician.party)
+        canvas.create_oval(x - r, y - r, x + r, y + r, fill=button.politician.party, width=0)
         # Draw politician name and count
         canvas.create_text(x, y, text=button.politician.count, font="Arial 12")
         canvas.create_text(x, y + 30, text=button.politician.name, font="Arial 12")
