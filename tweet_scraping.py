@@ -1,5 +1,7 @@
 # Audrey Ding @alding
 
+# This file contains the part of the program that uses snscrape or Tweepy
+
 # REFERENCE LIST: (didn't use directly but referred to)
 # http://docs.tweepy.org/en/latest/index.html
 # https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/tweet

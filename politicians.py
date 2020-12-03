@@ -1,3 +1,5 @@
+# This file contains the Politician and Button classes
+
 class Politician(object):
     # A Politician has a name, Twitter username, and party
     def __init__(self, name, username, party):

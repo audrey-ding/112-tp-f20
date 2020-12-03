@@ -1,6 +1,7 @@
 # Audrey Ding @alding
 
 # Using cmu_112_graphics from 15-112 course notes
+# This file handles visualizations
 
 from cmu_112_graphics import *
 from tweet_scraping import *
