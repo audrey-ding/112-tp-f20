@@ -10,11 +10,13 @@
 import os
 import json
 import time
+import sys
 
 import tweepy
 from tweepy import RateLimitError
 
 from subprocess import Popen, PIPE, STDOUT
+
 
 # Gets and returns Twitter API 
 # From https://github.com/cedoard/snscrape_twitter  
@@ -56,6 +58,8 @@ def getTweets(userOrSearch, query, since):
                 tweets.add(twitterAPI.get_status(tweetID, tweet_mode="extended").full_text)
         except Exception as err:
             print(f"SNSCRAPE ERROR: {err}")
+            # sys.exit implementation from https://stackoverflow.com/a/438902
+            sys.exit(1)
         
     print(f'Scraped all tweets.')
     return tweets

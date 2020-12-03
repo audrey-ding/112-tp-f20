@@ -4,10 +4,12 @@ from politicians import *
 from datetime import date, timedelta
 import math
 import random
+import sys
 
 def appStarted(app):
     bern = Politician("Bernie Sanders", "BernieSanders", "blue")
-    app.currButton = Button(0, 0, 0, bern)
+    ted = Politician("Ted Cruz", "tedcruz", "red")
+    app.currButton = Button(0, 0, 0, ted)
     app.keyword = "election"
     app.plotValues = []
     app.today = 0
@@ -25,7 +27,12 @@ def calculatePlotCounts(app):
     for i in range(0, 31, 5):
         # Get since date and find cumulative count
         dt = thirtyDaysAgo + timedelta(i)
-        count = countTweetsWithUser(app.currButton.politician.username, app.keyword, str(dt))
+        try:
+            count = countTweetsWithUser(app.currButton.politician.username, app.keyword, str(dt))
+        except:
+            print("STOP")
+            # sys.exit implementation from https://stackoverflow.com/a/438902
+            sys.exit(1)
         print(f"{30 - i} days ago, {count}")
         cumulative.append(count)
     
@@ -62,7 +69,7 @@ def drawIndividualPlot(app, canvas):
     points = [] # 2d list storing point coords
     for i in range(len(app.plotValues)):
         x = int(plotWidth / len(app.plotValues)) * i + margin
-        y = int((app.plotValues[i] / yLabel) * plotHeight) + topMargin
+        y = app.height - margin - int((app.plotValues[i] / yLabel) * plotHeight) 
         # Draw label on x axis 
         xLabel = f"{30 - i*5} days ago"
         canvas.create_text(x, app.height - margin / 2, text=xLabel, font="Arial 12")
@@ -73,7 +80,7 @@ def drawIndividualPlot(app, canvas):
     
     # Draw point for today
     x = plotWidth + margin
-    y = int((app.today / yLabel) * plotHeight) + topMargin
+    y = app.height - margin - int((app.today / yLabel) * plotHeight) + topMargin
     # Draw x label
     canvas.create_text(x, app.height - margin / 2, text="today", font="Arial 12")
     # Draw dot
@@ -86,5 +93,9 @@ def drawIndividualPlot(app, canvas):
                            points[j+1][1], fill="black", width=3)
 
 def redrawAll(app, canvas):
-    drawIndividualFramework(app, canvas)
-    drawIndividualPlot(app, canvas)
+    try:
+        drawIndividualFramework(app, canvas)
+        drawIndividualPlot(app, canvas)
+    except Exception as err:
+        canvas.create_text(app.width / 2, app.height / 2, 
+                           text=f"Rate limit exceeded. Try again later")
