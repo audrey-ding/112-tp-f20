@@ -62,7 +62,7 @@ def getTweets(userOrSearch, query, since):
     twitterAPI = getAPI()
     tweetIDs = getTweetIDs(userOrSearch, query, since)
     for singleID in tweetIDs:
-        tweets.add(twitterAPI.get_status(singleID).text)
+        tweets.add(twitterAPI.get_status(singleID, tweet_mode="extended").full_text)
     return tweets
 
 # Passes a keyword and a list of tweets from a user since a specific date
