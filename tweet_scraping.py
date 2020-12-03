@@ -36,8 +36,9 @@ def getAPI():
 
 # Returns list of tweet IDs corresponding to a given query (user or keyword)
 # Adapted from https://github.com/cedoard/snscrape_twitter 
-def getTweetIDs(userOrSearch, query, since):
-    tweetIDs = set()
+def getTweets(userOrSearch, query, since):
+    twitterAPI = getAPI()
+    tweets = set()
     # Ensure we are searching a valid keyword
     if len(query) > 0:
         print(f'Scraping tweets with keyword: "{query}" ...')
@@ -51,20 +52,12 @@ def getTweetIDs(userOrSearch, query, since):
                 # Discard front part of URL
                 temp = line.decode().split("status/")
                 tempStr = temp[1]
-                tweetIDs.add(tempStr[:-1]) # discard \n character and append to result list
+                tweetID = tempStr[:-1]
+                tweets.add(twitterAPI.get_status(tweetID, tweet_mode="extended").full_text)
         except Exception as err:
             print(f"SNSCRAPE ERROR: {err}")
         
     print(f'Scraped all tweets.')
-    return tweetIDs
-
-# Returns list of tweets (text and shortened URL)
-def getTweets(userOrSearch, query, since):
-    tweets = set() 
-    twitterAPI = getAPI()
-    tweetIDs = getTweetIDs(userOrSearch, query, since)
-    for singleID in tweetIDs:
-        tweets.add(twitterAPI.get_status(singleID, tweet_mode="extended").full_text)
     return tweets
 
 # Passes a keyword and a list of tweets from a user since a specific date
@@ -80,5 +73,5 @@ def countTweetsWithUser(user, keyword, since):
 
 # Returns number of tweets under a specific query
 def countTweets(userOrSearch, query, since):
-    tweets = getTweetIDs(userOrSearch, query, since)
+    tweets = getTweets(userOrSearch, query, since)
     return len(tweets)
