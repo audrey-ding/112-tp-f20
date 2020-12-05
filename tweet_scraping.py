@@ -36,11 +36,12 @@ def getAPI():
 
     return api
 
-# Returns list of tweet IDs corresponding to a given query (user or keyword)
+# Returns list of tweets in the form [date created, tweet text] corresponding to 
+#   a given query (user or keyword)
 # Adapted from https://github.com/cedoard/snscrape_twitter 
 def getTweets(userOrSearch, query, since):
     twitterAPI = getAPI()
-    tweets = set()
+    tweets = []
     # Ensure we are searching a valid keyword
     if len(query) > 0:
         print(f'Scraping tweets with keyword: "{query}" ...')
@@ -55,7 +56,13 @@ def getTweets(userOrSearch, query, since):
                 temp = line.decode().split("status/")
                 tempStr = temp[1]
                 tweetID = tempStr[:-1]
-                tweets.add(twitterAPI.get_status(tweetID, tweet_mode="extended").full_text)
+                status = twitterAPI.get_status(tweetID, tweet_mode="extended")
+                date = status.created_at
+                text = status.full_text
+                # Have to cast datetime to str so it's JSON serializable
+                tweets.append([str(date), text]) 
+        except RateLimitError as err:
+            print("Rate limit exceeded")
         except Exception as err:
             print(f"SNSCRAPE ERROR: {err}")
             # sys.exit implementation from https://stackoverflow.com/a/438902
@@ -64,18 +71,18 @@ def getTweets(userOrSearch, query, since):
     print(f'Scraped all tweets.')
     return tweets
 
-# Passes a keyword and a list of tweets from a user since a specific date
-# Returns number of tweets from the user (since the date) that matches the keyword
-def countTweetsWithUser(user, keyword, since):
-    tweets = getTweets("user", user, since)
-    counts = 0
-    for tweet in tweets:
-        # search isn't case sensitive
-        if keyword.lower() in tweet.lower(): 
-            counts += 1
-    return counts
+# # Passes a keyword and a list of tweets from a user since a specific date
+# # Returns number of tweets from the user (since the date) that matches the keyword
+# def countTweetsWithUser(user, keyword, since):
+#     tweets = getTweets("user", user, since)
+#     counts = 0
+#     for tweet in tweets:
+#         # search isn't case sensitive
+#         if keyword.lower() in tweet.lower(): 
+#             counts += 1
+#     return counts
 
-# Returns number of tweets under a specific query
-def countTweets(userOrSearch, query, since):
-    tweets = getTweets(userOrSearch, query, since)
-    return len(tweets)
+# # Returns number of tweets under a specific query
+# def countTweets(userOrSearch, query, since):
+#     tweets = getTweets(userOrSearch, query, since)
+#     return len(tweets)
