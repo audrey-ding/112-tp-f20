@@ -45,44 +45,31 @@ def getTweets(userOrSearch, query, since):
     # Ensure we are searching a valid keyword
     if len(query) > 0:
         print(f'Scraping tweets with keyword: "{query}" ...')
-        try:
-            # These next two lines are from:
-            # https://www.saltycrane.com/blog/2008/09/how-get-stdout-and-stderr-using-python-subprocess-module/
-            # Runs command line
-            cmd = f"snscrape --since {since} twitter-{userOrSearch} {query}" 
-            p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True) 
-            for line in p.stdout:
-                # Discard front part of URL
-                temp = line.decode().split("status/")
-                tempStr = temp[1]
-                tweetID = tempStr[:-1]
-                status = twitterAPI.get_status(tweetID, tweet_mode="extended")
-                date = status.created_at
-                text = status.full_text
-                # Have to cast datetime to str so it's JSON serializable
-                tweets.append([str(date), text]) 
-        except RateLimitError as err:
-            print("Rate limit exceeded")
-        except Exception as err:
-            print(f"SNSCRAPE ERROR: {err}")
-            # sys.exit implementation from https://stackoverflow.com/a/438902
-            sys.exit(1)
+        # These next two lines are from:
+        # https://www.saltycrane.com/blog/2008/09/how-get-stdout-and-stderr-using-python-subprocess-module/
+        # Runs command line
+        cmd = f"snscrape --since {since} twitter-{userOrSearch} {query}" 
+        p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True) 
+        i = 0
+        for line in p.stdout:
+            # Discard front part of URL
+            temp = line.decode().split("status/")
+            tempStr = temp[1]
+            tweetID = tempStr[:-1]
+            while True:
+                try:
+                    status = twitterAPI.get_status(tweetID, tweet_mode="extended")
+                    # If it works, break out of the loop
+                    break
+                except RateLimitError as err:
+                    # If quota exceeded, wait 15 min (900 secs) and continue
+                    print(f"Rate limit exceeded: {time.ctime()}")
+                    time.sleep(60)
+                    print(f"Started again: {time.ctime()}")
+            date = status.created_at
+            text = status.full_text
+            # Have to cast datetime to str so it's JSON serializable
+            tweets.append([str(date), text]) 
         
     print(f'Scraped all tweets.')
     return tweets
-
-# # Passes a keyword and a list of tweets from a user since a specific date
-# # Returns number of tweets from the user (since the date) that matches the keyword
-# def countTweetsWithUser(user, keyword, since):
-#     tweets = getTweets("user", user, since)
-#     counts = 0
-#     for tweet in tweets:
-#         # search isn't case sensitive
-#         if keyword.lower() in tweet.lower(): 
-#             counts += 1
-#     return counts
-
-# # Returns number of tweets under a specific query
-# def countTweets(userOrSearch, query, since):
-#     tweets = getTweets(userOrSearch, query, since)
-#     return len(tweets)

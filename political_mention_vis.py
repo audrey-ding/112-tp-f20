@@ -1,7 +1,7 @@
 # Audrey Ding @alding
 
 # Using cmu_112_graphics from 15-112 course notes
-# This file handles visualizations
+# This file reads from the JSON file of tweet data and handles visualizations
 
 from cmu_112_graphics import *
 from tweet_scraping import *
@@ -18,12 +18,14 @@ class StartMode(Mode):
     # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#ioMethods
     def keyPressed(self, event):
         if event.key == "s":
-            strDate = self.getUserInput("Enter a date from the past year (YYYY-MM-DD):")
+            strDate = self.getUserInput("Enter a date from the past year (YYYY-M-D):")
             if (strDate == None):
                 self.message = "You cancelled, press s to try again"
+            # Convert string date to datetime 
             try:
                 # Referenced:
                 # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+                # https://stackoverflow.com/questions/19480028/attributeerror-datetime-module-has-no-attribute-strptime
                 self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
             except ValueError as err:
                 self.message = "Wrong date formatting, press s to try again"
@@ -74,8 +76,6 @@ class ComparisonMode(Mode):
         for democrat in democraticUsers:
             self.politicians.append(Politician(democrat[0], democrat[1], "blue"))
 
-        self.keyword = "election"
-        self.since = "2020-11-30"
         self.getCounts()
         self.maxCount = self.greatestCount()
         
@@ -85,8 +85,8 @@ class ComparisonMode(Mode):
     def getCounts(self):
         for politician in self.politicians:
             count = self.app.countUserKeywordTweets(politician.username, 
-                                                     self.keyword, self.since)
-            print(count)
+                                                    self.app.keyword, 
+                                                    self.app.date)
             politician.setCount(count)
 
     def greatestCount(self):
@@ -113,6 +113,7 @@ class ComparisonMode(Mode):
             for x in range(cellWidth, self.width, cellWidth):
                 currentPol = self.politicians[polIndex]
                 maxR = min(cellWidth, cellHeight) / 2
+
                 # Calculate radius based on proportion with maxCount
                 r = (currentPol.count / self.maxCount) * maxR
                 self.buttons.append(Button(x, y, r, currentPol))
@@ -135,7 +136,6 @@ class ComparisonMode(Mode):
 
 class PlotMode(Mode):
     def appStarted(self):
-        self.keyword = "election"
         self.plotValues = []
         self.today = 0
         self.calculatePlotCounts()
@@ -146,20 +146,18 @@ class PlotMode(Mode):
     def calculatePlotCounts(self):
         # Datetime implementation from
         # https://www.w3resource.com/python-exercises/date-time-exercise/python-date-time-exercise-5.php
-        thirtyDaysAgo = date.today() - timedelta(31) # "since" arg is exclusive
+        thirtyDaysAgo = date.today() - timedelta(11) # "since" arg is exclusive
         cumulative = []
         # Get cumulative counts for since 30 days ago, 25, 20, 15, ...
-        for i in range(0, 31, 5):
+        for i in range(0, 11, 5):
             # Get since date and find cumulative count
-            dt = thirtyDaysAgo + timedelta(i)
-            try:
-                count = self.app.countUserKeywordTweets(self.app.currButton.politician.username, 
-                                                        self.keyword, str(dt))
-            except:
-                print("STOP")
-                # sys.exit implementation from https://stackoverflow.com/a/438902
-                sys.exit(1)
-            print(f"{30 - i} days ago, {count}")
+            # Takes datetime.date, turns into string
+            strDate = str(thirtyDaysAgo + timedelta(i)) 
+            # Turns string into datetime.datetime
+            dt = datetime.datetime.strptime(strDate, "%Y-%m-%d")
+            count = self.app.countUserKeywordTweets(self.app.currButton.politician.username, 
+                                                        self.app.keyword, dt)
+            print(f"{10 - i} days ago, {count}")
             cumulative.append(count)
         
         self.today = cumulative[len(cumulative) - 1]
@@ -171,7 +169,7 @@ class PlotMode(Mode):
         # Cover canvas
         canvas.create_rectangle(0, 0, self.width, self.height, fill="white")
         # Draw title 
-        title = f"{self.app.currButton.politician.name}'s tweets on \"{self.keyword}\""
+        title = f"{self.app.currButton.politician.name}'s tweets on \"{self.app.keyword}\""
         canvas.create_text(self.width / 2, 50, text=title, font="Arial 18 bold")
         margin = 50 # 50 px margin on sides and bottom
         topMargin = 100 # to leave room for the title
@@ -195,7 +193,7 @@ class PlotMode(Mode):
             x = int(plotWidth / len(self.plotValues)) * i + margin
             y = self.height - margin - int((self.plotValues[i] / yLabel) * plotHeight) 
             # Draw label on x axis 
-            xLabel = f"{30 - i*5} days ago"
+            xLabel = f"{10 - i*5} days ago"
             canvas.create_text(x, self.height - margin / 2, text=xLabel, font="Arial 12")
 
             # Draw dot
@@ -204,7 +202,7 @@ class PlotMode(Mode):
         
         # Draw point for today
         x = plotWidth + margin
-        y = self.height - margin - int((self.today / yLabel) * plotHeight) + topMargin
+        y = self.height - margin - int((self.today / yLabel) * plotHeight)
         # Draw x label
         canvas.create_text(x, self.height - margin / 2, text="today", font="Arial 12")
         # Draw dot
@@ -218,19 +216,18 @@ class PlotMode(Mode):
 
     def redrawAll(self, canvas):
         try:
-            self.drawIndividualFramework(self, canvas)
-            self.drawIndividualPlot(self, canvas)
+            self.drawIndividualFramework(canvas)
+            self.drawIndividualPlot(canvas)
         except Exception as err:
             canvas.create_text(self.width / 2, self.height / 2, 
-                              text=f"Rate limit exceeded. Try again later")
+                              text=f"Error : {err}")
 
 
 class MyModalApp(ModalApp):
     def appStarted(app):
-        # updateJson()
-
-        app.tweetData = open("tedcruz.json").read()
+        app.tweetData = open("tweet_data.json").read()
         app.tweetDataJson = json.loads(app.tweetData)
+        app.updateJson()
 
         app.date = None
         app.keyword = None
@@ -240,28 +237,50 @@ class MyModalApp(ModalApp):
         app.plotMode = PlotMode()
         app.setActiveMode(app.startMode)
 
-    # Updates JSON file to include newest tweets
-    def updateJson():
-        pass
+    # Updates JSON file, if necessary, to include newest tweets
+    def updateJson(app):    
+        strLastUpdated = app.tweetDataJson["scrapeDate"] 
+        lastUpdated = datetime.datetime.strptime(strLastUpdated, "%Y-%m-%d")
+        strToday = str(date.today())
+        today = datetime.datetime.strptime(strToday, "%Y-%m-%d")
+        
+        # Only update if last updated date wasn't today
+        if lastUpdated != today:
+            updatedData = {}
+            updatedData["scrapeDate"] = str(date.today())
+            for key in app.tweetDataJson:
+                if key != "scrapeDate":
+                    # Scrape from last updated date
+                    newTweets = getTweets("user", key, lastUpdated)
+                    oldTweets = app.tweetDataJson[user] # old tweets from the file
+                    total = newTweets + oldTweets # combine new and old
+                    updatedData[key] = total
+            with open("tweet_data.json", "w") as outfile:
+                json.dump(updatedData, outfile)
+        else:
+            print("Nothing to update")
 
     # Returns list of tweets from a specified date
     def getTweetsFromDate(app, user, targetDate):
-        userData = app.tweetDataJson[user]
-        userTweets = userData["tweets"]
-        currentDate = datetime.datetime(1983, 1, 1) # internet's bday, small value
+        userTweets = app.tweetDataJson[user]
         i = 0
-        while targetDate < currentDate:
+        while True:
             tweet = userTweets[i]
             strDate = tweet[0]
-            # Deserizalizes date
-            currentDate = datetime.datetime.strptime(strDate, "%Y-%m-%d")
-            i += 1
-
-        return userTweets[i:]
+            # Convert string date to date
+            currentDate = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
+            # Break out of loop if currentDate is earlier than targetDate
+            # userTweets has most current tweets first
+            if currentDate < targetDate: 
+                break
+            else:
+                i += 1
+    
+        return userTweets[:i]
 
     # Returns count of tweets that match a user and keyword, from a specified date
     def countUserKeywordTweets(app, user, keyword, since):
-        tweets = getTweetsFromDate(app, user, since)
+        tweets = app.getTweetsFromDate(user, since)
         count = 0
         for tweet in tweets:
             text = tweet[1]
