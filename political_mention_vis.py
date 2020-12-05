@@ -10,6 +10,40 @@ from datetime import date, timedelta
 import math
 import random
 
+class StartMode(Mode):
+    def appStarted(self):
+        self.message = "Press s to start"
+
+    # Referenced: 
+    # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#ioMethods
+    def keyPressed(self, event):
+        if event.key == "s":
+            strDate = self.getUserInput("Enter a date from the past year (YYYY-MM-DD):")
+            if (strDate == None):
+                self.message = "You cancelled, press s to try again"
+            try:
+                # Referenced:
+                # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+                self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
+            except ValueError as err:
+                self.message = "Wrong date formatting, press s to try again"
+
+            self.app.keyword = self.getUserInput("Enter a search keyword:")
+            if (self.app.keyword == None):
+                self.message = "You cancelled, press s to try again"
+
+            if self.app.date != None and self.app.keyword != None:
+                self.message = "Press enter to continue"
+
+        if event.key == "Enter":
+            self.app.setActiveMode(self.app.comparisonMode)
+
+    def redrawAll(self, canvas):
+        canvas.create_text(self.width/2, self.height/2, text="Political Tweet Analyzer",
+                           font="Arial 18 bold")
+        canvas.create_text(self.width/2, self.height/2 + 50, text=self.message,
+                           font="Arial 14")
+
 class ComparisonMode(Mode):
     def appStarted(self):
         # 2d list of top Republicans and their Twitter usernames
@@ -31,7 +65,8 @@ class ComparisonMode(Mode):
                            ["Bernie Sanders", "BernieSanders"],
                            ["Barack Obama", "BarackObama"],
                            ["Hillary Clinton", "HillaryClinton"]]
-                        
+
+             
         # List of Politician objects 
         self.politicians = []
         for republican in republicanUsers:
@@ -49,7 +84,8 @@ class ComparisonMode(Mode):
 
     def getCounts(self):
         for politician in self.politicians:
-            count = countTweetsWithUser(politician.username, self.keyword, self.since)
+            count = self.app.countUserKeywordTweets(politician.username, 
+                                                     self.keyword, self.since)
             print(count)
             politician.setCount(count)
 
@@ -62,11 +98,11 @@ class ComparisonMode(Mode):
 
     def mousePressed(self, event):
         for button in self.buttons:
-            if pointInCircle(event.x, event.y, button.x, button.y, button.r):
+            if self.pointInCircle(event.x, event.y, button.x, button.y, button.r):
                 self.app.currButton = button
                 self.app.setActiveMode(self.app.plotMode)
 
-    def pointInCircle(x0, y0, x1, y1, r):
+    def pointInCircle(self, x0, y0, x1, y1, r):
         return ((x1 - x0)**2 + (y1 - y0)**2)**0.5 <= r
 
     def makeButtons(self):
@@ -117,7 +153,8 @@ class PlotMode(Mode):
             # Get since date and find cumulative count
             dt = thirtyDaysAgo + timedelta(i)
             try:
-                count = countTweetsWithUser(self.app.currButton.politician.username, self.keyword, str(dt))
+                count = self.app.countUserKeywordTweets(self.app.currButton.politician.username, 
+                                                        self.keyword, str(dt))
             except:
                 print("STOP")
                 # sys.exit implementation from https://stackoverflow.com/a/438902
@@ -190,7 +227,45 @@ class PlotMode(Mode):
 
 class MyModalApp(ModalApp):
     def appStarted(app):
+        # updateJson()
+
+        app.tweetData = open("tedcruz.json").read()
+        app.tweetDataJson = json.loads(app.tweetData)
+
+        app.date = None
+        app.keyword = None
+        app.startMode = StartMode()
         app.comparisonMode = ComparisonMode()
         app.currButton = None
         app.plotMode = PlotMode()
-        app.setActiveMode(app.comparisonMode)
+        app.setActiveMode(app.startMode)
+
+    # Updates JSON file to include newest tweets
+    def updateJson():
+        pass
+
+    # Returns list of tweets from a specified date
+    def getTweetsFromDate(app, user, targetDate):
+        userData = app.tweetDataJson[user]
+        userTweets = userData["tweets"]
+        currentDate = datetime.datetime(1983, 1, 1) # internet's bday, small value
+        i = 0
+        while targetDate < currentDate:
+            tweet = userTweets[i]
+            strDate = tweet[0]
+            # Deserizalizes date
+            currentDate = datetime.datetime.strptime(strDate, "%Y-%m-%d")
+            i += 1
+
+        return userTweets[i:]
+
+    # Returns count of tweets that match a user and keyword, from a specified date
+    def countUserKeywordTweets(app, user, keyword, since):
+        tweets = getTweetsFromDate(app, user, since)
+        count = 0
+        for tweet in tweets:
+            text = tweet[1]
+            # Search isn't case sensitive
+            if keyword.lower() in text.lower():
+                count += 1
+        return count
