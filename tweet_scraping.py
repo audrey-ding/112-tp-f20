@@ -62,7 +62,7 @@ def getTweets(userOrSearch, query, since):
                     # If it works, break out of the loop
                     break
                 except RateLimitError as err:
-                    # If quota exceeded, wait 15 min (900 secs) and continue
+                    # If quota exceeded, wait 1 min (60 secs) and continue
                     print(f"Rate limit exceeded: {time.ctime()}")
                     time.sleep(60)
                     print(f"Started again: {time.ctime()}")

@@ -67,7 +67,6 @@ class ComparisonMode(Mode):
                            ["Bernie Sanders", "BernieSanders"],
                            ["Barack Obama", "BarackObama"],
                            ["Hillary Clinton", "HillaryClinton"]]
-
              
         # List of Politician objects 
         self.politicians = []
@@ -234,6 +233,8 @@ class SimilarityMode(Mode):
         self.tweets = self.getUserKeywordTweets(self.app.currPol.username, 
                                                 self.app.keyword, 
                                                 self.app.date)
+        
+        self.newKeyword = ""
         self.similarTweet = ""
         self.similarTweetKeyword()
 
@@ -256,15 +257,18 @@ class SimilarityMode(Mode):
         maxCounts = 0
         for word in tweetWords:
             if self.potentialKeyword(word):
+                print(word)
                 currCount = self.countKeyword(self.app.currPol.username, word)
                 # Get potential keyword that was mentioned the most
                 if currCount > maxCounts:
                     maxWord = word
                     maxCounts = currCount
+        self.newKeyword = maxWord
         
         newKeywordTweets = self.getUserKeywordTweets(self.app.currPol.username, 
-                                                     maxWord,
+                                                     self.newKeyword,
                                                      self.app.date)
+                                                     
         self.similarTweet = self.getRandomTweet(newKeywordTweets)
 
     def getRandomTweet(self, database):
@@ -294,6 +298,7 @@ class SimilarityMode(Mode):
 
     def drawSimilarTweet(self, canvas):
         canvas.create_text(self.width/2, self.height/2, text=self.similarTweet)
+    
 
     def redrawAll(self, canvas):
         self.drawSimilarTweet(canvas)

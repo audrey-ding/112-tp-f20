@@ -16,7 +16,7 @@ users = [["Donald Trump", "realDonaldTrump"],
          ["Hillary Clinton", "HillaryClinton"]]
 
 # "since" arg is exclusive, so add 1 to number of days
-# Using 15 as a safe test
+# Using 30 days ago as a safe test
 since = date.today() - timedelta(31) 
 
 tweetData = {}
@@ -34,4 +34,4 @@ for user in users:
 with open("tweet_data.json", "w") as outfile:
     json.dump(tweetData, outfile)
 
-print("done")
+print("Done")
