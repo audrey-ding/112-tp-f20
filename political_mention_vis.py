@@ -99,7 +99,7 @@ class ComparisonMode(Mode):
     def mousePressed(self, event):
         for button in self.buttons:
             if self.pointInCircle(event.x, event.y, button.x, button.y, button.r):
-                self.app.currButton = button
+                self.app.currPol = button.politician
                 self.app.setActiveMode(self.app.plotMode)
 
     def pointInCircle(self, x0, y0, x1, y1, r):
@@ -146,18 +146,18 @@ class PlotMode(Mode):
     def calculatePlotCounts(self):
         # Datetime implementation from
         # https://www.w3resource.com/python-exercises/date-time-exercise/python-date-time-exercise-5.php
-        thirtyDaysAgo = date.today() - timedelta(11) # "since" arg is exclusive
+        thirtyDaysAgo = date.today() - timedelta(21) # "since" arg is exclusive
         cumulative = []
         # Get cumulative counts for since 30 days ago, 25, 20, 15, ...
-        for i in range(0, 11, 5):
+        for i in range(0, 21, 5):
             # Get since date and find cumulative count
             # Takes datetime.date, turns into string
             strDate = str(thirtyDaysAgo + timedelta(i)) 
             # Turns string into datetime.datetime
             dt = datetime.datetime.strptime(strDate, "%Y-%m-%d")
-            count = self.app.countUserKeywordTweets(self.app.currButton.politician.username, 
+            count = self.app.countUserKeywordTweets(self.app.currPol.username, 
                                                         self.app.keyword, dt)
-            print(f"{10 - i} days ago, {count}")
+            print(f"{20 - i} days ago, {count}")
             cumulative.append(count)
         
         self.today = cumulative[len(cumulative) - 1]
@@ -165,11 +165,15 @@ class PlotMode(Mode):
         for j in range(len(cumulative) - 1):
             self.plotValues.append(cumulative[j] - cumulative[j + 1])
 
+    def keyPressed(self, event):
+        if event.key == "Enter":
+            self.app.setActiveMode(self.app.similarityMode)
+
     def drawIndividualFramework(self, canvas):
         # Cover canvas
         canvas.create_rectangle(0, 0, self.width, self.height, fill="white")
         # Draw title 
-        title = f"{self.app.currButton.politician.name}'s tweets on \"{self.app.keyword}\""
+        title = f"{self.app.currPol.name}'s tweets on \"{self.app.keyword}\""
         canvas.create_text(self.width / 2, 50, text=title, font="Arial 18 bold")
         margin = 50 # 50 px margin on sides and bottom
         topMargin = 100 # to leave room for the title
@@ -193,7 +197,7 @@ class PlotMode(Mode):
             x = int(plotWidth / len(self.plotValues)) * i + margin
             y = self.height - margin - int((self.plotValues[i] / yLabel) * plotHeight) 
             # Draw label on x axis 
-            xLabel = f"{10 - i*5} days ago"
+            xLabel = f"{20 - i*5} days ago"
             canvas.create_text(x, self.height - margin / 2, text=xLabel, font="Arial 12")
 
             # Draw dot
@@ -218,9 +222,81 @@ class PlotMode(Mode):
         try:
             self.drawIndividualFramework(canvas)
             self.drawIndividualPlot(canvas)
+            canvas.create_text(self.width/2, self.height - 10, 
+                              text="Press enter to continue")
         except Exception as err:
             canvas.create_text(self.width / 2, self.height / 2, 
                               text=f"Error : {err}")
+
+class SimilarityMode(Mode):
+    def appStarted(self):
+        # List that matches current user and keyword, from a date
+        self.tweets = self.getUserKeywordTweets(self.app.currPol.username, 
+                                                self.app.keyword, 
+                                                self.app.date)
+        self.similarTweet = ""
+        self.similarTweetKeyword()
+
+    # Returns tweets (text only) that match a user and keyword, from a date
+    def getUserKeywordTweets(self, user, keyword, since):
+        tweets = self.app.getTweetsFromDate(user, since)
+        result = []
+        for tweet in tweets:
+            text = tweet[1]
+            # Search isn't case sensitive
+            if keyword.lower() in text.lower():
+                result.append(text)
+        return result
+
+    def similarTweetKeyword(self):
+        # Get random tweet from self.tweets
+        randTweet = self.getRandomTweet(self.tweets)
+        tweetWords = randTweet.split()
+        maxWord = ""
+        maxCounts = 0
+        for word in tweetWords:
+            if self.potentialKeyword(word):
+                currCount = self.countKeyword(self.app.currPol.username, word)
+                # Get potential keyword that was mentioned the most
+                if currCount > maxCounts:
+                    maxWord = word
+                    maxCounts = currCount
+        
+        newKeywordTweets = self.getUserKeywordTweets(self.app.currPol.username, 
+                                                     maxWord,
+                                                     self.app.date)
+        self.similarTweet = self.getRandomTweet(newKeywordTweets)
+
+    def getRandomTweet(self, database):
+        randInd = random.randint(0, len(database) - 1)
+        return database[randInd]
+
+    def potentialKeyword(self, word):
+        # Articles, prepositions, and other filler words are usually short
+        if len(word) < 4:
+            return False
+        # Potential keyword can't be current keyword that created self.tweets
+        if word == self.app.keyword:
+            return False
+        # If is title case, then it's a proper noun, so potential keyword
+        elif word[:1].isupper() and word[1:].islower():
+            return True
+
+    # Searches self.tweets for keyword and returns frequency
+    def countKeyword(self, user, keyword):
+        count = 0
+        for tweet in self.tweets:
+            text = tweet[1]
+            # Search isn't case sensitive
+            if keyword.lower() in text.lower():
+                count += 1
+        return count
+
+    def drawSimilarTweet(self, canvas):
+        canvas.create_text(self.width/2, self.height/2, text=self.similarTweet)
+
+    def redrawAll(self, canvas):
+        self.drawSimilarTweet(canvas)
 
 
 class MyModalApp(ModalApp):
@@ -233,8 +309,9 @@ class MyModalApp(ModalApp):
         app.keyword = None
         app.startMode = StartMode()
         app.comparisonMode = ComparisonMode()
-        app.currButton = None
+        app.currPol = None
         app.plotMode = PlotMode()
+        app.similarityMode = SimilarityMode()
         app.setActiveMode(app.startMode)
 
     # Updates JSON file, if necessary, to include newest tweets

@@ -15,9 +15,9 @@ users = [["Donald Trump", "realDonaldTrump"],
          ["Barack Obama", "BarackObama"],
          ["Hillary Clinton", "HillaryClinton"]]
 
-# "since" arg is exclusive so 365 + 1
+# "since" arg is exclusive, so add 1 to number of days
 # Using 15 as a safe test
-yearAgo = date.today() - timedelta(15) 
+since = date.today() - timedelta(31) 
 
 tweetData = {}
 tweetData["scrapeDate"] = str(date.today())
@@ -27,7 +27,7 @@ for user in users:
     # Records date the data was updated, 
     #   have to cast datetime to str so it's JSON serializable
     # List of [date created, tweet text] for more efficient lookup
-    tweetData[username] = getTweets("user", username, yearAgo) 
+    tweetData[username] = getTweets("user", username, since) 
 
 # Next two lines from:
 # https://stackabuse.com/reading-and-writing-json-to-a-file-in-python/
