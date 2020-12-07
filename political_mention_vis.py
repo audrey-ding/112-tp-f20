@@ -12,6 +12,8 @@ import random
 
 class StartMode(Mode):
     def appStarted(self):
+        self.app.date = None
+        self.app.keyword = None
         self.message = "Press s to start"
 
     # Referenced: 
@@ -40,7 +42,7 @@ class StartMode(Mode):
                 self.message = "Press enter to continue"
 
         if event.key == "Enter":
-            self.app.setActiveMode(self.app.comparisonMode)
+            self.app.setActiveMode(ComparisonMode())
 
     def redrawAll(self, canvas):
         canvas.create_text(self.width/2, self.height/2, text="Political Tweet Analyzer",
@@ -50,6 +52,8 @@ class StartMode(Mode):
 
 class ComparisonMode(Mode):
     def appStarted(self):
+        self.app.curPol = None
+
         # 2d list of top Republicans and their Twitter usernames
         # Partially based on popular Republican Twitter users and this list:
         # https://today.yougov.com/ratings/politics/popularity/Republicans/all 
@@ -101,7 +105,7 @@ class ComparisonMode(Mode):
             if self.app.pointInCircle(event.x, event.y, button.x, button.y, 
                                       button.r):
                 self.app.currPol = button.politician
-                self.app.setActiveMode(self.app.plotMode)
+                self.app.setActiveMode(PlotMode())
     
     def keyPressed(self, event):
         if event.key == "Delete":
@@ -144,6 +148,8 @@ class ComparisonMode(Mode):
 
 class PlotMode(Mode):
     def appStarted(self):
+        self.app.currPoint = None
+
         self.points = [] # list of Points
         self.counts = [] # list of counts for 5-day increments
         self.calculateCounts()
@@ -208,13 +214,13 @@ class PlotMode(Mode):
         for point in self.points:
             if self.app.pointInCircle(event.x, event.y, point.x, point.y, point.r):
                 self.app.currPoint = point
-                self.app.setActiveMode(self.app.pointMode)
+                self.app.setActiveMode(PointMode())
 
     def keyPressed(self, event):
         if event.key == "Enter":
-            self.app.setActiveMode(self.app.similarityMode)
+            self.app.setActiveMode(SimilarityMode())
         if event.key == "Delete":
-            self.app.setActiveMode(self.app.comparisonMode)
+            self.app.setActiveMode(ComparisonMode())
 
     def drawFramework(self, canvas):
         # Cover canvas
@@ -259,16 +265,35 @@ class PlotMode(Mode):
     
 class PointMode(Mode):
     def appStarted(self):
-        self.display = ""
+        self.tweet = ""
+        self.display = []
         self.getPointTweet()
+
+    def keyPressed(self, event):
+        if event.key == "Delete":
+            self.app.setActiveMode(PlotMode())
 
     def getPointTweet(self):
         tweets = self.app.currPoint.tweets
-        self.display = self.app.getRandomTweet(tweets)
+        self.tweet = self.app.getRandomTweet(tweets)
+        self.display = self.app.formatTweet(self.tweet[1])
+    
+    def drawTweet(self, canvas):
+        strDate = self.tweet[0]
+        dateWithTime = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
+        date = dateWithTime.date()
+        header = f"{self.app.currPol.name} @{self.app.currPol.username}, {date}"
+        canvas.create_text(self.width/2, self.height/2 - 25, text=header,
+                           font="Arial 18 bold")
+        
+        for i in range(len(self.display)):
+            canvas.create_text(self.width/2, self.height/2 + i*20,
+                               text=self.display[i], font="Arial 16")
 
     def redrawAll(self, canvas):
-        canvas.create_text(self.width/2, self.height/2, text=self.display, 
-                           font="Arial 12")
+        self.drawTweet(canvas)
+        canvas.create_text(self.width/2, self.height - 25,
+                           text="Press delete to go back")
 
 class SimilarityMode(Mode):
     def appStarted(self):
@@ -281,7 +306,7 @@ class SimilarityMode(Mode):
         self.similarTweet = ""
         self.similarTweetKeyword()
 
-    # Returns tweets (text only) that match a user and keyword, from a date
+    # Returns tweets that match a user and keyword, from a date
     def getUserKeywordTweets(self, user, keyword, since):
         tweets = self.app.getTweetsFromDate(user, since)
         result = []
@@ -289,13 +314,13 @@ class SimilarityMode(Mode):
             text = tweet[1]
             # Search isn't case sensitive
             if keyword.lower() in text.lower():
-                result.append(text)
+                result.append(tweet)
         return result
 
     def similarTweetKeyword(self):
         # Get random tweet from self.tweets
         randTweet = self.app.getRandomTweet(self.tweets)
-        tweetWords = randTweet.split()
+        tweetWords = randTweet[1].split()
         maxWord = ""
         maxCounts = 0
         for word in tweetWords:
@@ -313,6 +338,7 @@ class SimilarityMode(Mode):
                                                      self.app.date)
 
         self.similarTweet = self.app.getRandomTweet(newKeywordTweets)
+        self.display = self.app.formatTweet(self.similarTweet[1])
 
     def potentialKeyword(self, word):
         # Articles, prepositions, and other filler words are usually short
@@ -336,9 +362,18 @@ class SimilarityMode(Mode):
         return count
 
     def drawSimilarTweet(self, canvas):
-        canvas.create_text(self.width/2, self.height/2, text=self.similarTweet)
-    
+        strDate = self.similarTweet[0]
+        dateWithTime = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
+        date = dateWithTime.date()
+        header = f"{self.app.currPol.name} @{self.app.currPol.username}, {date}"
+        canvas.create_text(self.width/2, self.height/2 - 25, text=header,
+                           font="Arial 18 bold")
+        
+        for i in range(len(self.display)):
+            canvas.create_text(self.width/2, self.height/2 + i*20,
+                               text=self.display[i], font="Arial 16")
 
+    
     def redrawAll(self, canvas):
         self.drawSimilarTweet(canvas)
 
@@ -351,14 +386,10 @@ class MyModalApp(ModalApp):
 
         app.date = None
         app.keyword = None
-        app.startMode = StartMode()
-        app.comparisonMode = ComparisonMode()
         app.currPol = None
-        app.plotMode = PlotMode()
         app.currPoint = None
-        app.pointMode = PointMode()
-        app.similarityMode = SimilarityMode()
-        app.setActiveMode(app.startMode)
+
+        app.setActiveMode(StartMode())
 
     # Updates JSON file, if necessary, to include newest tweets
     def updateJson(app):    
@@ -437,4 +468,24 @@ class MyModalApp(ModalApp):
 
     def getRandomTweet(app, database):
         randInd = random.randint(0, len(database) - 1)
+        # print(database)
+        # print(f"random index: {randInd}")
         return database[randInd]
+
+    def formatTweet(app, tweetText):
+        display = []
+        words = tweetText.split()
+        count = 0
+        line = ""
+        for word in words:
+            count += len(word) + 1 # space is a character too
+            if count < 50:
+                line += word + " "
+            else:
+                display.append(line + word) # add line to list of lines
+                # Reset count and line
+                count = 0
+                line = ""
+        display.append(line) # last line
+        
+        return display
