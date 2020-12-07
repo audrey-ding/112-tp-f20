@@ -83,9 +83,8 @@ class ComparisonMode(Mode):
 
     def getCounts(self):
         for politician in self.politicians:
-            count = self.app.countUserKeywordTweets(politician.username, 
-                                                    self.app.keyword, 
-                                                    self.app.date)
+            tweets = self.app.getTweetsFromDate(politician.username, self.app.date)
+            count = self.app.countUserKeywordTweets(self.app.keyword, tweets)
             politician.setCount(count)
 
     def greatestCount(self):
@@ -97,12 +96,14 @@ class ComparisonMode(Mode):
 
     def mousePressed(self, event):
         for button in self.buttons:
-            if self.pointInCircle(event.x, event.y, button.x, button.y, button.r):
+            if self.app.pointInCircle(event.x, event.y, button.x, button.y, 
+                                      button.r):
                 self.app.currPol = button.politician
                 self.app.setActiveMode(self.app.plotMode)
-
-    def pointInCircle(self, x0, y0, x1, y1, r):
-        return ((x1 - x0)**2 + (y1 - y0)**2)**0.5 <= r
+    
+    def keyPressed(self, event):
+        if event.key == "Delete":
+            self.app.setActiveMode(StartMode())
 
     def makeButtons(self):
         cellWidth = int(self.width / 5)
@@ -132,100 +133,113 @@ class ComparisonMode(Mode):
 
     def redrawAll(self, canvas):
         self.drawButtons(canvas)
+        canvas.create_text(self.width / 2, self.height - 25, 
+                          text="Press delete to go back")
 
 class PlotMode(Mode):
     def appStarted(self):
-        self.plotValues = []
-        self.today = 0
-        self.calculatePlotCounts()
+        self.points = [] # list of Points
+        self.counts = [] # list of counts for 5-day increments
+        self.calculateCounts()
+
+        self.xMargin = 50 # margins for graph framework
+        self.yMargin = 100
+        self.yLabel = 0 # label on y axis 
+        self.makePoints()
 
     # Calculates 5-day-increment tweet frequencies (y-values to be plotted)
     # Returns list of y-values to be plotted and today's frequency
     #   Return today's frequency here to minimize how many times we scrape
-    def calculatePlotCounts(self):
+    def calculateCounts(self):
         # Datetime implementation from
         # https://www.w3resource.com/python-exercises/date-time-exercise/python-date-time-exercise-5.php
-        thirtyDaysAgo = date.today() - timedelta(21) # "since" arg is exclusive
+        thirtyDaysAgo = date.today() - timedelta(31) # "since" arg is exclusive
         cumulative = []
         # Get cumulative counts for since 30 days ago, 25, 20, 15, ...
-        for i in range(0, 21, 5):
+        for i in range(0, 31, 5):
             # Get since date and find cumulative count
-            # Takes datetime.date, turns into string
-            strDate = str(thirtyDaysAgo + timedelta(i)) 
-            # Turns string into datetime.datetime
-            dt = datetime.datetime.strptime(strDate, "%Y-%m-%d")
-            count = self.app.countUserKeywordTweets(self.app.currPol.username, 
-                                                        self.app.keyword, dt)
-            print(f"{20 - i} days ago, {count}")
-            cumulative.append(count)
-        
-        self.today = cumulative[len(cumulative) - 1]
+            start = self.app.dateToDatetime(thirtyDaysAgo) + timedelta(i)
+            # If it's the last point, it's today, so can't add 5
+            if i == 30:
+                end = start + timedelta(1) # today
+            else:
+                end = start + timedelta(5)
+            # Tweet list that matches date range and user
+            tweets = self.app.getTweetsDateRange(self.app.currPol.username, 
+                                                 start, end)
+            # Create Point with list of tweets, append to self.points
+            self.points.append(Point(tweets))
+            # Count of tweets that match keyword, append to self.counts
+            count = self.app.countUserKeywordTweets(self.app.keyword, tweets) 
+            self.counts.append(count)
 
-        for j in range(len(cumulative) - 1):
-            self.plotValues.append(cumulative[j] - cumulative[j + 1])
+    def makePoints(self):
+        plotWidth = self.width - self.xMargin * 2
+        plotHeight = self.height - self.yMargin * 2
+
+        # Largest count that determines y axis scale
+        maxCount = max(self.counts) 
+        # Round to nearest ten for label
+        self.yLabel = int(math.ceil(maxCount / 10) * 10)
+        print(self.yLabel)
+
+        for i in range(len(self.counts)):
+            x = int(plotWidth / (len(self.counts) - 1)) * i + self.xMargin
+            y = (self.height - self.yMargin - 
+                int((self.counts[i] / self.yLabel) * plotHeight))
+            # If it's the last point, it is today
+            if i == len(self.counts) - 1:
+                xLabel = "today"
+            else:
+                xLabel = f"{30 - i*5} days ago"
+            currPoint = self.points[i]
+            currPoint.setAttributes(x, y, 5, xLabel)
 
     def keyPressed(self, event):
         if event.key == "Enter":
             self.app.setActiveMode(self.app.similarityMode)
+        if event.key == "Delete":
+            self.app.setActiveMode(self.app.comparisonMode)
 
-    def drawIndividualFramework(self, canvas):
+    def drawFramework(self, canvas):
         # Cover canvas
         canvas.create_rectangle(0, 0, self.width, self.height, fill="white")
         # Draw title 
         title = f"{self.app.currPol.name}'s tweets on \"{self.app.keyword}\""
         canvas.create_text(self.width / 2, 50, text=title, font="Arial 18 bold")
-        margin = 50 # 50 px margin on sides and bottom
-        topMargin = 100 # to leave room for the title
         # Draw plot frame with margins
-        canvas.create_rectangle(margin, topMargin, self.width - margin, 
-                                self.height - margin) 
+        canvas.create_rectangle(self.xMargin, self.yMargin, 
+                                self.width - self.xMargin, 
+                                self.height - self.yMargin) 
 
-    def drawIndividualPlot(self, canvas):
-        margin = 50
-        topMargin = 100
-        plotWidth = self.width - margin * 2
-        plotHeight = self.height - margin - topMargin 
-
-        maxCount = max(self.plotValues) # largest count that determines y axis scale
-        yLabel = int(math.ceil(maxCount / 10) * 10) # round to nearest ten for label
+    def drawPlot(self, canvas):
         # Draw yLabel on y axis
-        canvas.create_text(margin - 10, topMargin, text=yLabel, font="Arial 12")
+        canvas.create_text(self.xMargin - 10, self.yMargin, text=self.yLabel, 
+                           font="Arial 12")
 
-        points = [] # 2d list storing point coords
-        for i in range(len(self.plotValues)):
-            x = int(plotWidth / len(self.plotValues)) * i + margin
-            y = self.height - margin - int((self.plotValues[i] / yLabel) * plotHeight) 
-            # Draw label on x axis 
-            xLabel = f"{20 - i*5} days ago"
-            canvas.create_text(x, self.height - margin / 2, text=xLabel, font="Arial 12")
-
+        # Loop through Points, draw dots, draw x labels, and draw lines
+        for i in range(len(self.points)):
+            x = self.points[i].x
+            y = self.points[i].y
+            xLabel = self.points[i].xLabel
             # Draw dot
             canvas.create_oval(x - 5, y - 5, x + 5, y + 5, fill="black")
-            points.append([x, y])
-        
-        # Draw point for today
-        x = plotWidth + margin
-        y = self.height - margin - int((self.today / yLabel) * plotHeight)
-        # Draw x label
-        canvas.create_text(x, self.height - margin / 2, text="today", font="Arial 12")
-        # Draw dot
-        canvas.create_oval(x - 5, y - 5, x + 5, y + 5, fill="black")
-        points.append([x, y])
-
-        # Draw connecting lines 
-        for j in range(len(points) - 1):
-            canvas.create_line(points[j][0], points[j][1], points[j+1][0], 
-                            points[j+1][1], fill="black", width=3)
+            # Draw x label
+            canvas.create_text(x, self.height - self.yMargin + 15, text=xLabel, 
+                            font="Arial 12")
+            # Draw connecting line to next point, but only if not at last point
+            if i != len(self.points) - 1:
+                x1 = self.points[i + 1].x
+                y1 = self.points[i + 1].y
+                canvas.create_line(x, y, x1, y1, fill="black", width = 3)
 
     def redrawAll(self, canvas):
-        try:
-            self.drawIndividualFramework(canvas)
-            self.drawIndividualPlot(canvas)
-            canvas.create_text(self.width/2, self.height - 10, 
-                              text="Press enter to continue")
-        except Exception as err:
-            canvas.create_text(self.width / 2, self.height / 2, 
-                              text=f"Error : {err}")
+        self.drawFramework(canvas)
+        self.drawPlot(canvas)
+        canvas.create_text(self.width/2, self.height - 25, 
+                            text="Press enter to continue, delete to go back")
+    
+
 
 class SimilarityMode(Mode):
     def appStarted(self):
@@ -268,7 +282,7 @@ class SimilarityMode(Mode):
         newKeywordTweets = self.getUserKeywordTweets(self.app.currPol.username, 
                                                      self.newKeyword,
                                                      self.app.date)
-                                                     
+
         self.similarTweet = self.getRandomTweet(newKeywordTweets)
 
     def getRandomTweet(self, database):
@@ -308,7 +322,7 @@ class MyModalApp(ModalApp):
     def appStarted(app):
         app.tweetData = open("tweet_data.json").read()
         app.tweetDataJson = json.loads(app.tweetData)
-        app.updateJson()
+        # app.updateJson()
 
         app.date = None
         app.keyword = None
@@ -342,7 +356,7 @@ class MyModalApp(ModalApp):
         else:
             print("Nothing to update")
 
-    # Returns list of tweets from a specified date
+    # Returns list of tweets from a specified datetime
     def getTweetsFromDate(app, user, targetDate):
         userTweets = app.tweetDataJson[user]
         i = 0
@@ -360,9 +374,24 @@ class MyModalApp(ModalApp):
     
         return userTweets[:i]
 
-    # Returns count of tweets that match a user and keyword, from a specified date
-    def countUserKeywordTweets(app, user, keyword, since):
-        tweets = app.getTweetsFromDate(user, since)
+    def getTweetsDateRange(app, user, start, end):
+        subset = app.getTweetsFromDate(user, start)
+        i = 0
+        while True:
+            tweet = subset[i]
+            strDate = tweet[0]
+            # Convert string date to date
+            currentDate = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
+            # Break out of loop if end is earlier than targetDate
+            # subset has most current tweets first
+            if currentDate < end:
+                break
+            else:
+                i += 1
+        return subset[i:]
+
+    # Returns count of tweets that match a keyword, from a list of tweets
+    def countUserKeywordTweets(app, keyword, tweets):
         count = 0
         for tweet in tweets:
             text = tweet[1]
@@ -370,3 +399,10 @@ class MyModalApp(ModalApp):
             if keyword.lower() in text.lower():
                 count += 1
         return count
+
+    def pointInCircle(app, x0, y0, x1, y1, r):
+        return ((x1 - x0)**2 + (y1 - y0)**2)**0.5 <= r
+
+    def dateToDatetime(app, date):
+        strDate = str(date)
+        return datetime.datetime.strptime(strDate, "%Y-%m-%d")
