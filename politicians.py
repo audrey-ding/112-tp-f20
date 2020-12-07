@@ -1,4 +1,4 @@
-# This file contains the Politician and Button classes
+# This file contains the Politician, Button, and Point classes
 
 class Politician(object):
     # A Politician has a name, Twitter username, and party

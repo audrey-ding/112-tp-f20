@@ -18,7 +18,9 @@ class StartMode(Mode):
     # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#ioMethods
     def keyPressed(self, event):
         if event.key == "s":
-            strDate = self.getUserInput("Enter a date from the past year (YYYY-M-D):")
+            start = str(date.today() - timedelta(180))
+            datePrompt = f"Enter a date from the past 180 days (after {start}) (YYYY-M-D):"
+            strDate = self.getUserInput(datePrompt)
             if (strDate == None):
                 self.message = "You cancelled, press s to try again"
             # Convert string date to datetime 
@@ -113,9 +115,12 @@ class ComparisonMode(Mode):
             for x in range(cellWidth, self.width, cellWidth):
                 currentPol = self.politicians[polIndex]
                 maxR = min(cellWidth, cellHeight) / 2
-
-                # Calculate radius based on proportion with maxCount
-                r = (currentPol.count / self.maxCount) * maxR
+                # No one mentioned, so no circle 
+                if self.maxCount == 0:
+                    r = 0
+                # Otherwise,cxalculate radius based on proportion with maxCount
+                else:
+                    r = (currentPol.count / self.maxCount) * maxR
                 self.buttons.append(Button(x, y, r, currentPol))
                 polIndex += 1
 
@@ -134,7 +139,8 @@ class ComparisonMode(Mode):
     def redrawAll(self, canvas):
         self.drawButtons(canvas)
         canvas.create_text(self.width / 2, self.height - 25, 
-                          text="Press delete to go back")
+                           text="Press delete to go back")
+
 
 class PlotMode(Mode):
     def appStarted(self):
@@ -179,9 +185,12 @@ class PlotMode(Mode):
 
         # Largest count that determines y axis scale
         maxCount = max(self.counts) 
-        # Round to nearest ten for label
-        self.yLabel = int(math.ceil(maxCount / 10) * 10)
-        print(self.yLabel)
+        # No mentions in the past 30 days
+        if maxCount == 0:
+            self.yLabel = 1 # don't want to divide by 0
+        else:
+            # Otherwise, round to nearest ten for label
+            self.yLabel = int(math.ceil(maxCount / 10) * 10)
 
         for i in range(len(self.counts)):
             x = int(plotWidth / (len(self.counts) - 1)) * i + self.xMargin
@@ -195,6 +204,12 @@ class PlotMode(Mode):
             currPoint = self.points[i]
             currPoint.setAttributes(x, y, 5, xLabel)
 
+    def mousePressed(self, event):
+        for point in self.points:
+            if self.app.pointInCircle(event.x, event.y, point.x, point.y, point.r):
+                self.app.currPoint = point
+                self.app.setActiveMode(self.app.pointMode)
+
     def keyPressed(self, event):
         if event.key == "Enter":
             self.app.setActiveMode(self.app.similarityMode)
@@ -207,6 +222,9 @@ class PlotMode(Mode):
         # Draw title 
         title = f"{self.app.currPol.name}'s tweets on \"{self.app.keyword}\""
         canvas.create_text(self.width / 2, 50, text=title, font="Arial 18 bold")
+        # Clicky point instruction
+        point = "Click on a point for a tweet"
+        canvas.create_text(self.width / 2, 75, text=point, font="Arial 14")
         # Draw plot frame with margins
         canvas.create_rectangle(self.xMargin, self.yMargin, 
                                 self.width - self.xMargin, 
@@ -239,7 +257,18 @@ class PlotMode(Mode):
         canvas.create_text(self.width/2, self.height - 25, 
                             text="Press enter to continue, delete to go back")
     
+class PointMode(Mode):
+    def appStarted(self):
+        self.display = ""
+        self.getPointTweet()
 
+    def getPointTweet(self):
+        tweets = self.app.currPoint.tweets
+        self.display = self.app.getRandomTweet(tweets)
+
+    def redrawAll(self, canvas):
+        canvas.create_text(self.width/2, self.height/2, text=self.display, 
+                           font="Arial 12")
 
 class SimilarityMode(Mode):
     def appStarted(self):
@@ -265,7 +294,7 @@ class SimilarityMode(Mode):
 
     def similarTweetKeyword(self):
         # Get random tweet from self.tweets
-        randTweet = self.getRandomTweet(self.tweets)
+        randTweet = self.app.getRandomTweet(self.tweets)
         tweetWords = randTweet.split()
         maxWord = ""
         maxCounts = 0
@@ -283,11 +312,7 @@ class SimilarityMode(Mode):
                                                      self.newKeyword,
                                                      self.app.date)
 
-        self.similarTweet = self.getRandomTweet(newKeywordTweets)
-
-    def getRandomTweet(self, database):
-        randInd = random.randint(0, len(database) - 1)
-        return database[randInd]
+        self.similarTweet = self.app.getRandomTweet(newKeywordTweets)
 
     def potentialKeyword(self, word):
         # Articles, prepositions, and other filler words are usually short
@@ -330,6 +355,8 @@ class MyModalApp(ModalApp):
         app.comparisonMode = ComparisonMode()
         app.currPol = None
         app.plotMode = PlotMode()
+        app.currPoint = None
+        app.pointMode = PointMode()
         app.similarityMode = SimilarityMode()
         app.setActiveMode(app.startMode)
 
@@ -360,7 +387,8 @@ class MyModalApp(ModalApp):
     def getTweetsFromDate(app, user, targetDate):
         userTweets = app.tweetDataJson[user]
         i = 0
-        while True:
+        # userTweets can't be empty
+        while userTweets != []:
             tweet = userTweets[i]
             strDate = tweet[0]
             # Convert string date to date
@@ -371,13 +399,13 @@ class MyModalApp(ModalApp):
                 break
             else:
                 i += 1
-    
         return userTweets[:i]
 
     def getTweetsDateRange(app, user, start, end):
         subset = app.getTweetsFromDate(user, start)
         i = 0
-        while True:
+        # subset can't be empty
+        while subset != []:
             tweet = subset[i]
             strDate = tweet[0]
             # Convert string date to date
@@ -388,7 +416,7 @@ class MyModalApp(ModalApp):
                 break
             else:
                 i += 1
-        return subset[i:]
+        return subset[i + 1:]
 
     # Returns count of tweets that match a keyword, from a list of tweets
     def countUserKeywordTweets(app, keyword, tweets):
@@ -406,3 +434,7 @@ class MyModalApp(ModalApp):
     def dateToDatetime(app, date):
         strDate = str(date)
         return datetime.datetime.strptime(strDate, "%Y-%m-%d")
+
+    def getRandomTweet(app, database):
+        randInd = random.randint(0, len(database) - 1)
+        return database[randInd]
