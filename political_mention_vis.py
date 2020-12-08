@@ -265,7 +265,7 @@ class PlotMode(Mode):
         self.drawFramework(canvas)
         self.drawPlot(canvas)
         canvas.create_text(self.width/2, self.height - 25, 
-                           text="Press enter to continue, delete to go back",
+                           text="Press delete to go back",
                            font="Helvetica 14")
 
 class NoPointMode(Mode):
@@ -609,17 +609,16 @@ class MyModalApp(ModalApp):
 
     def formatTweet(app, tweetText):
         display = []
-        words = tweetText.split()
         count = 0
         line = ""
-        for word in words:
+        for word in tweetText.split():
             count += len(word) + 1 # space is a character too
             if count < 50:
                 line += word + " "
             else:
                 display.append(line) # add line to list of lines
                 # Word goes in new line
-                count = len(word)  + 1 # reset count
+                count = len(word) + 1 # reset count
                 line = word + " " # add word to the next line
         display.append(line) # last line
         return display
