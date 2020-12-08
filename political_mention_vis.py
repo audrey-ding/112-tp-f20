@@ -90,7 +90,7 @@ class ComparisonMode(Mode):
     def getCounts(self):
         for politician in self.politicians:
             tweets = self.app.getTweetsFromDate(politician.username, self.app.date)
-            count = self.app.countUserKeywordTweets(self.app.keyword, tweets)
+            count = self.app.countKeywordTweets(self.app.keyword, tweets)
             politician.setCount(count)
 
     def greatestCount(self):
@@ -148,8 +148,6 @@ class ComparisonMode(Mode):
 
 class PlotMode(Mode):
     def appStarted(self):
-        self.app.currPoint = None
-
         self.points = [] # list of Points
         self.counts = [] # list of counts for 5-day increments
         self.calculateCounts()
@@ -180,11 +178,11 @@ class PlotMode(Mode):
             generalTweets = self.app.getTweetsDateRange(self.app.currPol.username, 
                                                         start, end)
             # Tweet list that matches keyword too
-            tweets = self.app.getUserKeywordTweets(self.app.keyword, generalTweets)
+            tweets = self.app.getKeywordTweets(self.app.keyword, generalTweets)
             # Create Point with list of tweets, append to self.points
             self.points.append(Point(tweets))
             # Count of tweets that match keyword, append to self.counts
-            count = self.app.countUserKeywordTweets(self.app.keyword, tweets) 
+            count = self.app.countKeywordTweets(self.app.keyword, tweets) 
             self.counts.append(count)
 
     def makePoints(self):
@@ -283,69 +281,86 @@ class NoPointMode(Mode):
     
 class PointMode(Mode):
     def appStarted(self):
-        self.tweetBox = None
-        self.display = []
+        self.shift = 0
+        self.tweets = self.app.currPoint.tweets # simpler variable to look at
         self.tweetBoxes = [] # list of TweetBoxes
-        self.makeTweetBox()
+        self.makeTweetBoxes()
+        self.positionTweetBoxes()
+
+    def timerFired(self):
+        self.positionTweetBoxes()
         
     def mousePressed(self, event):
-        if self.tweetBox != None:
-            if (event.x >= self.tweetBox.x0 and event.x <= self.tweetBox.x1 and
-                event.y >= self.tweetBox.y0 and event.y <= self.tweetBox.y1):
-                print("HELLO?")
-                self.app.currTweetBox = self.tweetBox 
+        # Loop through tweet boxes to check if clicked
+        for tweetBox in self.tweetBoxes:
+            if (event.x >= tweetBox.x0 and event.x <= tweetBox.x1 and
+                event.y >= tweetBox.y0 and event.y <= tweetBox.y1):
+                self.app.currTweetBox = tweetBox 
                 self.app.setActiveMode(SimilarityMode())
 
     def keyPressed(self, event):
         if event.key == "Delete":
             self.app.setActiveMode(PlotMode())
-    
-    def makeTweetBox(self):
-        someTweet = self.app.currPoint.tweets[0]
-        self.display = self.app.formatTweet(someTweet[1])
+        elif event.key == "Down":
+            # Can't scroll down if no more boxes
+            if self.shift + 1 <= len(self.tweetBoxes):
+                self.shift += 1
+        elif event.key == "Up":
+            # Can't scroll up if displaying first box
+            if self.shift -1 >= 0:
+                self.shift -= 1
 
-        strDate = someTweet[0]
-        dateWithTime = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
-        date = dateWithTime.date()
-        self.header = f"{self.app.currPol.name} @{self.app.currPol.username} • {date}"
+    # Create TweetBox objects with display, header, and coords=0
+    def makeTweetBoxes(self):
+        for tweet in self.tweets:
+            display = self.app.formatTweet(tweet[1]) # formatted tweet
+            strDate = tweet[0]
+            dateWithTime = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
+            date = dateWithTime.date() # published date (date obj)
+            header = f"{self.app.currPol.name} @{self.app.currPol.username} • {date}"
 
-        boxWidth = self.maxCharCount(self.display, self.header) * 7 + 20 # margins
-        print("box width", boxWidth)
-        boxHeight = (len(self.display) + 1) * 20 + 15 # lines and header
+            self.tweetBoxes.append(TweetBox(0, 0, 0, 0, tweet, display, header))
 
-        x0 = self.width/2 - boxWidth/2
-        y0 = self.height/2 - boxHeight/2
-        x1 = self.width/2 + boxWidth/2
-        y1 = self.height/2 + boxHeight/2
-        
-        self.tweetBox = TweetBox(x0, y0, x1, y1, someTweet)
+    def positionTweetBoxes(self):
+        for i in range(self.shift, len(self.tweetBoxes)):
+            tweetBox = self.tweetBoxes[i]
 
-    # Returns number of characters in longest line, incl header
-    def maxCharCount(self, display, header):
-        maxCount = len(header)
-        maxLine = header
-        for line in display:
-            if len(line) > maxCount:
-                maxCount = len(line)
-                maxLine = line
-        print("max count", maxCount)
-        print(maxLine)
-        return maxCount
+            boxWidth = self.app.maxCharCount(tweetBox.display, tweetBox.header) * 7.5 + 20 # margins
+            # print(boxWidth)
+            # boxWidth = 360
+            boxHeight = (len(tweetBox.display) + 1) * 20 + 15 # lines and header
 
-    def drawTweetBox(self, canvas):
-        canvas.create_rectangle(self.tweetBox.x0, self.tweetBox.y0, 
-                                self.tweetBox.x1, self.tweetBox.y1)
+            x0 = self.width/2 - boxWidth/2
+            x1 = self.width/2 + boxWidth/2
+            # First tweet box, leave a margin of 20px
+            if i == self.shift:
+                y0 = 20
+            # Other tweet box y position depends on previous tweet box
+            else: 
+                y0 = self.tweetBoxes[i - 1].y1 + 20 # 20px margin 
+            y1 = y0 + boxHeight
+            
+            tweetBox.position(x0, y0, x1, y1)
 
-        canvas.create_text(self.tweetBox.x0 + 10, self.tweetBox.y0 + 15, 
-                           text=self.header, anchor=W,
-                           font="Helvetica 16 bold")
-        
-        for i in range(len(self.display)):
-            canvas.create_text(self.tweetBox.x0 + 10, self.tweetBox.y0 + 35 + i*20, 
-                               text=self.display[i], anchor=W, font="Helvetica 16")
+    # Loop through self.tweetBoxes and draw them
+    def drawTweetBoxes(self, canvas):
+        for i in range(self.shift, len(self.tweetBoxes)):
+            tweetBox = self.tweetBoxes[i]
+            # Don't want to draw out of bounds
+            if tweetBox.y1 > self.height:
+                break
+            canvas.create_rectangle(tweetBox.x0, tweetBox.y0, tweetBox.x1, 
+                                    tweetBox.y1)
+            canvas.create_text(tweetBox.x0 + 10, tweetBox.y0 + 15, 
+                               text=tweetBox.header, anchor=W, 
+                               font="Helvetica 16 bold")
+            for i in range(len(tweetBox.display)):
+                canvas.create_text(tweetBox.x0 + 10, tweetBox.y0 + 35 + i*20, 
+                                   text=tweetBox.display[i], anchor=W, 
+                                   font="Helvetica 16")
 
     def redrawAll(self, canvas):
-        self.drawTweetBox(canvas)
+        self.drawTweetBoxes(canvas)
         canvas.create_text(self.width/2, self.height - 25,
                            text="Press delete to go back", font="Helvetica 14")
 
@@ -361,6 +376,10 @@ class SimilarityMode(Mode):
 
         self.tweetBox = None
         self.makeTweetBox()
+    
+    def keyPressed(self, event):
+        if event.key == "Delete":
+            self.app.setActiveMode(PointMode())
 
     # Returns False if can't find similar tweet from hashtag, True otherwise
     def similarFromHashtag(self):
@@ -402,14 +421,13 @@ class SimilarityMode(Mode):
         maxCounts = 0
         for word in tweetWords:
             if self.potentialKeyword(word):
-                print(word)
                 currCount = self.countKeyword(self.app.currPol.username, word)
                 # Get potential keyword that was mentioned the most
                 if currCount > maxCounts:
                     maxWord = word
                     maxCounts = currCount
         
-        newKeywordTweets = self.getUserKeywordTweets(maxWord, self.generalTweets)
+        newKeywordTweets = self.app.getKeywordTweets(maxWord, self.userTweets)
 
         self.similarTweet = self.app.getRandomElement(newKeywordTweets)
 
@@ -417,17 +435,17 @@ class SimilarityMode(Mode):
         # Articles, prepositions, and other filler words are usually short
         if len(word) < 4:
             return False
-        # Potential keyword can't be current keyword that created self.tweets
+        # Potential keyword can't be current keyword that created self.userTweets
         if word == self.app.keyword:
             return False
         # If is title case, then it's a proper noun, so potential keyword
         elif word[:1].isupper() and word[1:].islower():
             return True
 
-    # Searches self.tweets for keyword and returns frequency
+    # Searches self.userTweets for keyword and returns frequency
     def countKeyword(self, user, keyword):
         count = 0
-        for tweet in self.tweets:
+        for tweet in self.userTweets:
             text = tweet[1]
             # Search isn't case sensitive
             if keyword.lower() in text.lower():
@@ -435,49 +453,40 @@ class SimilarityMode(Mode):
         return count
 
     def makeTweetBox(self):
-        self.display = self.app.formatTweet(self.similarTweet[1])
+        display = self.app.formatTweet(self.similarTweet[1])
 
         strDate = self.similarTweet[0]
         dateWithTime = datetime.datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
         date = dateWithTime.date()
-        self.header = f"{self.app.currPol.name} @{self.app.currPol.username} • {date}"
+        header = f"{self.app.currPol.name} @{self.app.currPol.username} • {date}"
 
-        boxWidth = self.maxCharCount(self.display, self.header) * 7 + 20 # margins
-        boxHeight = (len(self.display) + 1) * 20 + 15 # lines and header
+        boxWidth = self.app.maxCharCount(display, header) * 7 + 20 # margins
+        boxHeight = (len(display) + 1) * 20 + 15 # lines and header
 
         x0 = self.width/2 - boxWidth/2
         y0 = self.height/2 - boxHeight/2
         x1 = self.width/2 + boxWidth/2
         y1 = self.height/2 + boxHeight/2
         
-        self.tweetBox = TweetBox(x0, y0, x1, y1, self.similarTweet)
-
-    # Returns number of characters in longest line, incl header
-    def maxCharCount(self, display, header):
-        maxCount = len(header)
-        maxLine = header
-        for line in display:
-            if len(line) > maxCount:
-                maxCount = len(line)
-                maxLine = line
-        print("max count", maxCount)
-        print(maxLine)
-        return maxCount
+        self.tweetBox = TweetBox(x0, y0, x1, y1, self.similarTweet, display, header)
 
     def drawTweetBox(self, canvas):
         canvas.create_rectangle(self.tweetBox.x0, self.tweetBox.y0, 
                                 self.tweetBox.x1, self.tweetBox.y1)
 
         canvas.create_text(self.tweetBox.x0 + 10, self.tweetBox.y0 + 15, 
-                           text=self.header, anchor=W,
+                           text=self.tweetBox.header, anchor=W,
                            font="Helvetica 16 bold")
         
-        for i in range(len(self.display)):
+        for i in range(len(self.tweetBox.display)):
             canvas.create_text(self.tweetBox.x0 + 10, self.tweetBox.y0 + 35 + i*20, 
-                               text=self.display[i], anchor=W, font="Helvetica 16")
+                               text=self.tweetBox.display[i], anchor=W, 
+                               font="Helvetica 16")
 
     def redrawAll(self, canvas):
         self.drawTweetBox(canvas)
+        canvas.create_text(self.width/2, self.tweetBox.y0 - 25,
+                           text="Similar tweet", font="Helvetica 18 bold")
         canvas.create_text(self.width/2, self.height - 25,
                            text="Press delete to go back", font="Helvetica 14")
 
@@ -555,7 +564,7 @@ class MyModalApp(ModalApp):
         return subset[i + 1:]
 
     # Returns tweets that match a keyword, from a list of tweets 
-    def getUserKeywordTweets(app, keyword, tweets):
+    def getKeywordTweets(app, keyword, tweets):
         result = []
         for tweet in tweets:
             text = tweet[1]
@@ -565,7 +574,7 @@ class MyModalApp(ModalApp):
         return result
 
     # Returns count of tweets that match a keyword, from a list of tweets
-    def countUserKeywordTweets(app, keyword, tweets):
+    def countKeywordTweets(app, keyword, tweets):
         count = 0
         for tweet in tweets:
             text = tweet[1]
@@ -592,7 +601,6 @@ class MyModalApp(ModalApp):
         line = ""
         for word in words:
             count += len(word) + 1 # space is a character too
-            print("count", count)
             if count < 50:
                 line += word + " "
             else:
@@ -600,7 +608,15 @@ class MyModalApp(ModalApp):
                 # Word goes in new line
                 count = len(word)  + 1 # reset count
                 line = word + " " # add word to the next line
-
         display.append(line) # last line
-        
         return display
+
+    # Returns number of characters in longest line, incl header
+    def maxCharCount(app, display, header):
+        maxCount = len(header)
+        maxLine = header
+        for line in display:
+            if len(line) > maxCount:
+                maxCount = len(line)
+                maxLine = line
+        return maxCount

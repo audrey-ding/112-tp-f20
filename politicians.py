@@ -36,13 +36,18 @@ class Point(object):
         self.xLabel = xLabel
 
 class TweetBox(object):
-    # A TweetBox has coords x0, y0, x1, y1, and a tweet
-    def __init__(self, x0, y0, x1, y1, tweet):
+    # A TweetBox has coords, tweet, display (foormatted tweet), and a header
+    def __init__(self, x0, y0, x1, y1, tweet, display, header):
         self.x0 = x0
         self.y0 = y0
         self.x1 = x1
         self.y1 = y1
         self.tweet = tweet
+        self.display = display
+        self.header = header
     
-    def setTweet(self, tweet):
-        self.tweet = tweet
+    def position(self, x0, y0, x1, y1):
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
