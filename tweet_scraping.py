@@ -66,10 +66,28 @@ def getTweets(userOrSearch, query, since):
                     print(f"Rate limit exceeded: {time.ctime()}")
                     time.sleep(60)
                     print(f"Started again: {time.ctime()}")
+
+            # Reference for Tweepy Status object:
+            # https://www.geeksforgeeks.org/python-status-object-in-tweepy/
             date = status.created_at
             text = status.full_text
+
+            # Get list of hashtag dicts from entities of Status
+            hashtagDicts = status.entities["hashtags"]
+            # Loop through hashtag dicts and add hashtag text to list
+            hashtags = [] # list of hashtags (str)
+            for currDict in hashtagDicts:
+                hashtags.append(currDict["text"])
+
+            # Get list of mention dicts from entities of Status
+            mentionDicts = status.entities["user_mentions"]
+            # Loop through mention dicts and add mentioned usernames to list
+            mentions = [] # list of mentioned usernames (str)
+            for currDict in mentionDicts:
+                mentions.append(currDict["screen_name"])
+
             # Have to cast datetime to str so it's JSON serializable
-            tweets.append([str(date), text]) 
+            tweets.append([str(date), text, hashtags, mentions]) 
         
     print(f'Scraped all tweets.')
     return tweets

@@ -16,8 +16,7 @@ users = [["Donald Trump", "realDonaldTrump"],
          ["Hillary Clinton", "HillaryClinton"]]
 
 # "since" arg is exclusive, so add 1 to number of days
-# Using 30 days ago as a safe test
-since = date.today() - timedelta(181) 
+since = date.today() - timedelta(101) 
 
 tweetData = {}
 tweetData["scrapeDate"] = str(date.today())
