@@ -3,12 +3,13 @@
 # Using cmu_112_graphics from 15-112 course notes
 # This file reads from the JSON file of tweet data and handles visualizations
 
-from cmu_112_graphics import *
-from tweet_scraping import *
-from politicians import *
-from datetime import date, timedelta
-import math
-import random
+from cmu_112_graphics import * # import graphics
+from tweet_scraping import * # (my file) import scraping functions
+from politicians import * # (my file) import Politician, Button, Point, TweetBox
+# From Python library:
+from datetime import date, timedelta # https://docs.python.org/3/library/datetime.html
+import math # https://docs.python.org/3/library/math.html
+import random # https://docs.python.org/3/library/random.html 
 
 class StartMode(Mode):
     def appStarted(self):

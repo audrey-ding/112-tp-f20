@@ -1,4 +1,5 @@
 # Audrey Ding @alding
+# This file runs the app
 
 from tweet_scraping import *
 from cmu_112_graphics import *

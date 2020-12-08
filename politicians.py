@@ -1,7 +1,7 @@
 # This file contains the Politician, Button, and Point classes
 
+# A Politician has a name, Twitter username, and party
 class Politician(object):
-    # A Politician has a name, Twitter username, and party
     def __init__(self, name, username, party):
         self.name = name
         self.party = party # "red" or "blue"
@@ -12,16 +12,16 @@ class Politician(object):
     def setCount(self, count):
         self.count = count
 
+# A Button has a center, radius, and Politician object 
 class Button(object):
-    # A Button has a center, radius, and Politician object 
     def __init__(self, x, y, r, politician):
         self.x = x
         self.y = y
         self.r = r
         self.politician = politician
 
+# A Point has a center, radius, and list of tweets that match the query
 class Point(object):
-    # A Point has a center, radius, and list of tweets that match the query
     def __init__(self, tweets):
         self.tweets = tweets
         self.x = 0
@@ -35,8 +35,8 @@ class Point(object):
         self.r = r
         self.xLabel = xLabel
 
+# A TweetBox has coords, tweet, display (foormatted tweet), and a header
 class TweetBox(object):
-    # A TweetBox has coords, tweet, display (foormatted tweet), and a header
     def __init__(self, x0, y0, x1, y1, tweet, display, header):
         self.x0 = x0
         self.y0 = y0

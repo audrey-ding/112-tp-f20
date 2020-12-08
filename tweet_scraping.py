@@ -7,16 +7,15 @@
 # https://developer.twitter.com/en/docs/twitter-api/data-dictionary/object-model/tweet
 # https://github.com/JustAnotherArchivist/snscrape
 
-import os
-import json
-import time
-import sys
+# From Python library
+import os # https://docs.python.org/3/library/os.html 
+import json # https://docs.python.org/3/library/json.html 
+import time # https://docs.python.org/3/library/time.html 
+from subprocess import Popen, PIPE, STDOUT # https://docs.python.org/3/library/subprocess.html
 
+# Tweepy module http://docs.tweepy.org/en/latest/index.html 
 import tweepy
 from tweepy import RateLimitError
-
-from subprocess import Popen, PIPE, STDOUT
-
 
 # Gets and returns Twitter API 
 # From https://github.com/cedoard/snscrape_twitter  
@@ -69,16 +68,15 @@ def getTweets(userOrSearch, query, since):
 
             # Reference for Tweepy Status object:
             # https://www.geeksforgeeks.org/python-status-object-in-tweepy/
+
             date = status.created_at
             text = status.full_text
-
             # Get list of hashtag dicts from entities of Status
             hashtagDicts = status.entities["hashtags"]
             # Loop through hashtag dicts and add hashtag text to list
             hashtags = [] # list of hashtags (str)
             for currDict in hashtagDicts:
                 hashtags.append(currDict["text"])
-
             # Get list of mention dicts from entities of Status
             mentionDicts = status.entities["user_mentions"]
             # Loop through mention dicts and add mentioned usernames to list
