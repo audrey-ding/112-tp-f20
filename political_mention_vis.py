@@ -326,8 +326,7 @@ class PointMode(Mode):
             tweetBox = self.tweetBoxes[i]
 
             boxWidth = self.app.maxCharCount(tweetBox.display, tweetBox.header) * 7.5 + 20 # margins
-            # print(boxWidth)
-            # boxWidth = 360
+
             boxHeight = (len(tweetBox.display) + 1) * 20 + 15 # lines and header
 
             x0 = self.width/2 - boxWidth/2
@@ -341,6 +340,20 @@ class PointMode(Mode):
             y1 = y0 + boxHeight
             
             tweetBox.position(x0, y0, x1, y1)
+            self.consistentBoxWidth()
+
+    # Find max box width and set it as all tweet boxes' width (for consistency)
+    def consistentBoxWidth(self):
+        maxWidth = 0
+        # Get max width
+        for tweetBox in self.tweetBoxes:
+            if tweetBox.x1 - tweetBox.x0 > maxWidth:
+                maxWidth = tweetBox.x1 - tweetBox.x0
+        # Set max width for every tweet box
+        for tweetBox in self.tweetBoxes:
+            x0 = self.width/2 - maxWidth/2
+            x1 = self.width/2 + maxWidth/2
+            tweetBox.setWidth(x0, x1)    
 
     # Loop through self.tweetBoxes and draw them
     def drawTweetBoxes(self, canvas):

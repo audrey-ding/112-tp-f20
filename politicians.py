@@ -51,3 +51,7 @@ class TweetBox(object):
         self.y0 = y0
         self.x1 = x1
         self.y1 = y1
+
+    def setWidth(self, x0, x1):
+        self.x0 = x0
+        self.x1 = x1
