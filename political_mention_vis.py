@@ -698,6 +698,7 @@ class MyModalApp(ModalApp):
 
     # Make next Arrow
     def makeNext(app):
+        # Image from https://www.pngitem.com/so/back-button/ (flipped)
         nextImage = app.loadImage("right-arrow.png")
         margin = 25
 
@@ -712,6 +713,7 @@ class MyModalApp(ModalApp):
 
     # Make back Arrow
     def makeBack(app):
+        # Image from https://www.pngitem.com/so/back-button/
         backImage = app.loadImage("left-arrow.png")
         margin = 25
 
