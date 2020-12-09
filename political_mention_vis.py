@@ -369,8 +369,9 @@ class PointMode(Mode):
                                text=tweetBox.header, anchor=W, 
                                font="Helvetica 16 bold")
             for i in range(len(tweetBox.display)):
+                # print(tweetBox.display[i].encode("unicode-escape"))
                 canvas.create_text(tweetBox.x0 + 10, tweetBox.y0 + 35 + i*20, 
-                                   text=tweetBox.display[i], anchor=W, 
+                                   text=tweetBox.display[i].encode("unicode-escape"), anchor=W, 
                                    font="Helvetica 16")
 
     def redrawAll(self, canvas):
@@ -380,13 +381,12 @@ class PointMode(Mode):
 
 class SimilarityMode(Mode):
     def appStarted(self):
-        self.userTweets = self.app.tweetDataJson[self.app.currPol.username]
+        self.tweets = self.app.tweetDataJson[self.app.currPol.username]
         self.similarTweet = None
-
-        # Try searching from hashtag first, then mention, then word
-        if not self.similarFromHashtag():
-            if not self.similarFromMention():
-                self.similarFromWord()
+        
+        self.similarFromEntity("hashtag")
+        self.similarFromEntity("mention")
+        self.similarFromWord()
 
         self.tweetBox = None
         self.makeTweetBox()
@@ -394,40 +394,29 @@ class SimilarityMode(Mode):
     def keyPressed(self, event):
         if event.key == "Delete":
             self.app.setActiveMode(PointMode())
-
-    # Returns False if can't find similar tweet from hashtag, True otherwise
-    def similarFromHashtag(self):
-        hashtags = self.app.currTweetBox.tweet[2] # list of hashtags
-        searchHashtag = ""
-        if hashtags == []: # no hashtags
-            return False 
-        elif len(hashtags) == 1: # one hashtag, so use it
-            searchHashtag = hashtags[0]
-        elif len(hashtags) > 1: # more than one hashtag, so get random
-            searchHashtag = self.app.getRandomElement(hashtags)
-
-        for tweet in self.userTweets:
-            if searchHashtag in tweet[2]:
-                self.similarTweet = tweet
         
-        return True
+    # Find tweets that match app.currTweetBox's entities
+    def similarFromEntity(self, hashtagOrMention):
+        if hashtagOrMention == "hashtag":
+            x = 2 # hashtag is 3rd element of a tweet
+        else:
+            x = 3 # mention is 4th element of a tweet
+        entities = self.app.currTweetBox.tweet[x] # list of mentioned usernames
+        if entities != []:
+            self.tweets = self.searchForEntities(x, entities, self.tweets)
 
-    # Returns False if can't find similar tweet from hashtag, True otherwise
-    def similarFromMention(self):
-        mentions = self.app.currTweetBox.tweet[3] # list of mentioned usernames
-        searchMention = ""
-        if mentions == []:
-            return False
-        elif len(mentions) == 1: # one hashtag, so use it
-            searchMention = mentions[0]
-        elif len(mentions) > 1: # more than one hashtag, so get random
-            searchMention = self.app.getRandomElement(mentions)
-
-        for tweet in self.userTweets:
-            if searchMention in tweet[3]:
-                self.similarTweet = tweet
-        
-        return True
+    # Takes list of tweets, returns subset of tweets that matches entities
+    def searchForEntities(self, index, entities, tweets):
+        result = []
+        # Loop through tweets
+        for tweet in tweets:
+            # Loop through entities
+            for entity in entities:
+                # If the entity is in tweet's list of entities 
+                #   and the tweet is not already in result, add to result
+                if entity in tweet[index] and tweet not in result:
+                    result.append(tweet)
+        return result
 
     def similarFromWord(self):
         tweetWords = self.app.currTweetBox.tweet[1].split()
@@ -435,36 +424,25 @@ class SimilarityMode(Mode):
         maxCounts = 0
         for word in tweetWords:
             if self.potentialKeyword(word):
-                currCount = self.countKeyword(self.app.currPol.username, word)
+                currCount = self.app.countKeywordTweets(word, self.tweets)
                 # Get potential keyword that was mentioned the most
                 if currCount > maxCounts:
                     maxWord = word
                     maxCounts = currCount
         
-        newKeywordTweets = self.app.getKeywordTweets(maxWord, self.userTweets)
-
+        newKeywordTweets = self.app.getKeywordTweets(maxWord, self.tweets)
         self.similarTweet = self.app.getRandomElement(newKeywordTweets)
 
     def potentialKeyword(self, word):
         # Articles, prepositions, and other filler words are usually short
         if len(word) < 4:
             return False
-        # Potential keyword can't be current keyword that created self.userTweets
+        # Potential keyword can't be current keyword that created self.tweets
         if word == self.app.keyword:
             return False
         # If is title case, then it's a proper noun, so potential keyword
         elif word[:1].isupper() and word[1:].islower():
             return True
-
-    # Searches self.userTweets for keyword and returns frequency
-    def countKeyword(self, user, keyword):
-        count = 0
-        for tweet in self.userTweets:
-            text = tweet[1]
-            # Search isn't case sensitive
-            if keyword.lower() in text.lower():
-                count += 1
-        return count
 
     def makeTweetBox(self):
         display = self.app.formatTweet(self.similarTweet[1])
@@ -582,8 +560,9 @@ class MyModalApp(ModalApp):
         result = []
         for tweet in tweets:
             text = tweet[1]
+            search = keyword.lower() + " "
             # Search isn't case sensitive
-            if keyword.lower() in text.lower():
+            if search in text.lower():
                 result.append(tweet)
         return result
 
@@ -592,8 +571,9 @@ class MyModalApp(ModalApp):
         count = 0
         for tweet in tweets:
             text = tweet[1]
+            search = keyword.lower() + " "
             # Search isn't case sensitive
-            if keyword.lower() in text.lower():
+            if search in text.lower():
                 count += 1
         return count
 
@@ -612,7 +592,12 @@ class MyModalApp(ModalApp):
         display = []
         count = 0
         line = ""
-        for word in tweetText.split():
+        # Ignores emojis so there is no unicode error in displaying them
+        # Next 2 lines: 
+        # https://www.kite.com/python/answers/how-to-remove-non-ascii-characters-in-python
+        encoded = tweetText.encode("ascii", "ignore")
+        decoded = encoded.decode()
+        for word in decoded.split():
             count += len(word) + 1 # space is a character too
             if count < 50:
                 line += word + " "
