@@ -51,6 +51,69 @@ class StartMode(Mode):
         canvas.create_text(self.width/2, self.height/2 + 50, text=self.message,
                            font="Helvetica 14")
 
+class ChooseMode(Mode):
+    def appStarted(self):
+        # 2d list of top Republicans and their Twitter usernames
+        # Partially based on popular Republican Twitter users and this list:
+        # https://today.yougov.com/ratings/politics/popularity/Republicans/all 
+        republicanUsers = [["Donald Trump", "realDonaldTrump"], 
+                           ["Mike Pence", "Mike_Pence"], 
+                           ["Ted Cruz", "tedcruz"],
+                           ["Mitch McConnell", "senatemajldr"],
+                           ["Lindsey Graham", "LindseyGrahamSC"],
+                           ["Donald Trump Jr.", "DonaldJTrumpJr"],]
+
+        # 2d list of top Democrats and their Twitter usernames
+        # Partially based on popular Democratic Twitter users and this list:
+        # https://today.yougov.com/ratings/politics/popularity/Democrats/all 
+        democraticUsers = [["Joe Biden", "JoeBiden"],
+                           ["Kamala Harris", "KamalaHarris"],
+                           ["Alexandria Ocasio-Cortez", "AOC"],
+                           ["Bernie Sanders", "BernieSanders"],
+                           ["Barack Obama", "BarackObama"],
+                           ["Hillary Clinton", "HillaryClinton"]]
+
+        # List of Choice objects 
+        self.choices = []
+        # Choice box width and height
+        width = 300
+        height = 50
+        margin = 20 # margin between choice boxes
+        # Height of entire matrix (all boxes together with margin)
+        totalH = len(republicanUsers) * height + len(republicanUsers) * (margin-1)
+        totalMargin = (self.height - totalH) / 2
+
+        for i in range(len(republicanUsers)):
+            republican = republicanUsers[i]
+            x1 = self.width/2 - margin/2
+            x0 = x1 - width
+            y0 = totalMargin + (height + margin) * i
+            y1 = y0 + height
+
+            self.choices.append(Choice(republican[0], republican[1], "red", 
+                                       False, x0, y0, x1, y1))
+
+        for j in range(len(democraticUsers)):
+            democrat = democraticUsers[j]
+            x0 = self.width/2 + margin/2
+            x1 = x0 + width
+            y0 = totalMargin + (height + margin) * j
+            y1 = y0 + height
+            self.choices.append(Choice(democrat[0], democrat[1], "blue", False, 
+                                       x0, y0, x1, y1))
+
+    # Loop through self.choices and draw them
+    def drawChoices(self, canvas):
+        for choice in self.choices:
+            canvas.create_rectangle(choice.x0, choice.y0, choice.x1, choice.y1)
+            x = (choice.x0 + choice.x1) / 2
+            y = (choice.y0 + choice.y1) / 2
+            canvas.create_text(x, y, text=choice.name, font="Helvetica 14")
+
+    def redrawAll(self, canvas):
+        self.drawChoices(canvas)
+
+    
 class ComparisonMode(Mode):
     def appStarted(self):
         self.app.curPol = None
@@ -518,7 +581,7 @@ class MyModalApp(ModalApp):
         app.currPoint = None
         app.currTweetBox = None
 
-        app.setActiveMode(StartMode())
+        app.setActiveMode(ChooseMode())
 
     # Updates JSON file, if necessary, to include newest tweets
     def updateJson(app):    

@@ -1,6 +1,19 @@
 # This file contains the Politician, Button, and Point classes
 
-# A Politician has a name, Twitter username, and party
+# A Choice has a name, Twitter username, party, boolean value chosen, 
+#   and position coords
+class Choice(object):
+    def __init__(self, name, username, party, chosen, x0, y0, x1, y1):
+        self.name = name
+        self.party = party # "red" or "blue"
+        self.username = username # Twitter username
+        self.chosen = 0
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+
+# A Politician has a name, Twitter username, and party, and count of tweets
 class Politician(object):
     def __init__(self, name, username, party):
         self.name = name
