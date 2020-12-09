@@ -14,7 +14,16 @@ class Choice(object):
         self.y1 = y1
     
     def clicked(self):
-        self.chosen = True
+        self.chosen = not self.chosen
+
+# An Arrow has coordinates and corresponding image
+class Arrow(object):
+    def __init__(self, x0, y0, x1, y1, image):
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.image = image
 
 # A Politician has a name, Twitter username, and party, and count of tweets
 class Politician(object):
@@ -51,7 +60,7 @@ class Point(object):
         self.r = r
         self.xLabel = xLabel
 
-# A TweetBox has coords, tweet, display (foormatted tweet), and a header
+# A TweetBox has coords, tweet, display (formatted tweet), and a header
 class TweetBox(object):
     def __init__(self, x0, y0, x1, y1, tweet, display, header):
         self.x0 = x0

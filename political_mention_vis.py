@@ -10,49 +10,61 @@ from politicians import * # (my file) import Politician, Button, Point, TweetBox
 from datetime import date, timedelta # https://docs.python.org/3/library/datetime.html
 import math # https://docs.python.org/3/library/math.html
 import random # https://docs.python.org/3/library/random.html 
+import decimal
 
 class StartMode(Mode):
     def appStarted(self):
         self.app.date = None
         self.app.keyword = None
-        self.message = "Press s to start"
-
+        self.message = ""
+        # Splash screen made on Canva, logo from
+        # https://www.vhv.rs/viewpic/hTxToRJ_transparent-background-twitter-logo-hd-png-download/
+        # Image implementation from:
+        # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#loadImageUsingFile 
+        self.screen = self.loadImage("start-screen.png")
+            
     # Referenced: 
     # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#ioMethods
-    def keyPressed(self, event):
-        if event.key == "s":
-            start = str(date.today() - timedelta(100))
-            datePrompt = f"Enter a date from the past 100 days (after {start}) (YYYY-M-D):"
-            strDate = self.getUserInput(datePrompt)
-            if (strDate == None):
-                self.message = "You cancelled, press s to try again"
-            # Convert string date to datetime 
-            try:
-                # Referenced:
-                # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
-                # https://stackoverflow.com/questions/19480028/attributeerror-datetime-module-has-no-attribute-strptime
-                self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
-            except ValueError as err:
-                self.message = "Wrong date formatting, press s to try again"
+    def mousePressed(self, event):
+        start = str(date.today() - timedelta(100))
+        datePrompt = f"Enter a date from the past 100 days (after {start}) (YYYY-M-D):"
+        strDate = self.getUserInput(datePrompt)
+        if (strDate == None):
+            self.message = "You cancelled, press s to try again"
+        # Convert string date to datetime 
+        try:
+            # Referenced:
+            # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+            # https://stackoverflow.com/questions/19480028/attributeerror-datetime-module-has-no-attribute-strptime
+            self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
+        except ValueError as err:
+            self.message = "Wrong date formatting, press s to try again"
 
-            self.app.keyword = self.getUserInput("Enter a search keyword:")
-            if (self.app.keyword == None):
-                self.message = "You cancelled, press s to try again"
+        self.app.keyword = self.getUserInput("Enter a search keyword:")
+        if (self.app.keyword == None):
+            self.message = "You cancelled, press s to try again"
 
-            if self.app.date != None and self.app.keyword != None:
-                self.message = "Press enter to continue"
-
-        if event.key == "Enter":
+        if self.app.date != None and self.app.keyword != None:
             self.app.setActiveMode(ChooseMode())
+        
+    
+    # From 112 notes: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
+    def rgbString(self, r, g, b):
+        return f'#{r:02x}{g:02x}{b:02x}'
 
     def redrawAll(self, canvas):
-        canvas.create_text(self.width/2, self.height/2, text="Political Tweet Analyzer",
-                           font="Helvetica 18 bold")
-        canvas.create_text(self.width/2, self.height/2 + 50, text=self.message,
-                           font="Helvetica 14")
+        # Image implentation from
+        # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#loadImageUsingFile
+        canvas.create_image(self.width/2, self.height/2,
+                            image=ImageTk.PhotoImage(self.screen))
+        canvas.create_text(self.width/2, self.height - 25, text=self.message, 
+                           fill="white", font="Helvetica 16")
 
 class ChooseMode(Mode):
     def appStarted(self):
+        self.app.makeArrows()
+
+        self.app.politicians = [] # reset
         self.choices = [] # List of Choice objects
         self.makeChoices()
 
@@ -110,12 +122,18 @@ class ChooseMode(Mode):
             if (event.x >= choice.x0 and event.x <= choice.x1 and
                 event.y >= choice.y0 and event.y <= choice.y1):
                 choice.clicked()
-
-    def keyPressed(self, event):
-        if event.key == "Enter":
+        # If next arrow clicked, go to Comparison Mode
+        if (event.x >= self.app.next.x0 and event.x <= self.app.next.x1 and
+            event.y >= self.app.next.y0 and event.y <= self.app.next.y1):
             self.setPoliticians()
-            self.app.setActiveMode(ComparisonMode())
-
+            # Only go to Comparison Mode if politicians have been chosen
+            if self.app.politicians != []:
+                self.app.setActiveMode(ComparisonMode())
+        # If back arrow clicked, go back to Start Mode
+        elif (event.x >= self.app.back.x0 and event.x <= self.app.back.x1 and
+              event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
+            self.app.setActiveMode(StartMode())
+            
     def setPoliticians(self):
         # Loop through self.choices to find chosen ones
         for choice in self.choices:
@@ -124,6 +142,16 @@ class ChooseMode(Mode):
                 self.app.politicians.append(Politician(choice.name, 
                                                        choice.username, 
                                                        choice.party))
+
+    # Draw next and back arrows
+    def drawArrows(self, canvas):
+        nextX = (self.app.next.x0 + self.app.next.x1) / 2
+        nextY = (self.app.next.y0 + self.app.next.y1) / 2
+        canvas.create_image(nextX, nextY, image=ImageTk.PhotoImage(self.app.next.image))
+
+        backX = (self.app.back.x0 + self.app.back.x1) / 2
+        backY = (self.app.back.y0 + self.app.back.y1) / 2
+        canvas.create_image(backX, backY, image=ImageTk.PhotoImage(self.app.back.image))
 
     # Loop through self.choices and draw them
     def drawChoices(self, canvas):
@@ -139,9 +167,8 @@ class ChooseMode(Mode):
         canvas.create_text(self.width/2, self.choices[0].y0 - 50,
                            text="Click to choose politicians to compare",
                            font="Helvetica 16 bold")
+        self.drawArrows(canvas)
         self.drawChoices(canvas)
-
-
     
 class ComparisonMode(Mode):
     def appStarted(self):
@@ -150,8 +177,29 @@ class ComparisonMode(Mode):
         self.getCounts()
         self.maxCount = self.greatestCount()
         
+        self.rows = 0
+        self.cols = 0
+        self.getRowsCols()
+        self.margin = 20 # margin around sides and bottom
+        self.topMargin = 70 
+        # Next two lines from 112 getCellBounds()
+        # https://www.cs.cmu.edu/~112/notes/notes-animations-part1.html#exampleGrids
+        self.cellWidth  = (self.width - 2*self.margin) / self.cols
+        self.cellHeight = (self.height - self.margin - self.topMargin) / self.rows
+
         self.buttons = []
         self.makeButtons()
+    
+    def mousePressed(self, event):
+        for button in self.buttons:
+            if self.app.pointInCircle(event.x, event.y, button.x, button.y, 
+                                        button.r):
+                self.app.currPol = button.politician
+                self.app.setActiveMode(PlotMode())
+        
+    def keyPressed(self, event):
+        if event.key == "Delete":
+            self.app.setActiveMode(ChooseMode())
 
     def getCounts(self):
         for politician in self.app.politicians:
@@ -166,33 +214,63 @@ class ComparisonMode(Mode):
                 maxCount = politician.count
         return maxCount
 
-        def mousePressed(self, event):
-            for button in self.buttons:
-                if self.app.pointInCircle(event.x, event.y, button.x, button.y, 
-                                        button.r):
-                    self.app.currPol = button.politician
-                    self.app.setActiveMode(PlotMode())
-        
-        def keyPressed(self, event):
-            if event.key == "Delete":
-                self.app.setActiveMode(StartMode())
+    # Calculates how many rows, columns for optimal button placement
+    def getRowsCols(self):
+        total = len(self.app.politicians)
+        sqrt = total**0.5
+        # is_integer(): https://docs.python.org/3/library/stdtypes.html#float.is_integer
+        # If total is perfect square, then we're done
+        if sqrt.is_integer():
+            self.rows = int(sqrt)
+            self.cols = int(sqrt)
+        else:
+            factor = self.roundHalfUp(sqrt) # round sqrt
+            i = 0
+            # Find dimensions whose product is closest to total
+            while factor * i < total:
+                i += 1
+            # Canvas is rectangular, so rows should be < cols
+            self.rows = int(min(factor, i))
+            self.cols = int(max(factor, i))
+
+    # From 112 notes: 
+    # https://www.cs.cmu.edu/~112/notes/notes-variables-and-functions.html#RecommendedFunctions
+    def roundHalfUp(self, d):
+        import decimal
+        rounding = decimal.ROUND_HALF_UP
+        return int(decimal.Decimal(d).to_integral_value(rounding=rounding))
 
     def makeButtons(self):
-        cellWidth = int(self.width / 5)
-        cellHeight = int(self.height / 4)
         polIndex = 0
-        for y in range(cellHeight, self.height, cellHeight):
-            for x in range(cellWidth, self.width, cellWidth):
+        for row in range(self.rows):
+            for col in range(self.cols):
                 currentPol = self.app.politicians[polIndex]
-                maxR = min(cellWidth, cellHeight) / 2
+                maxR = min(self.cellWidth, self.cellHeight) / 2
                 # No one mentioned, so no circle 
                 if self.maxCount == 0:
                     r = 0
                 # Otherwise,cxalculate radius based on proportion with maxCount
                 else:
                     r = (currentPol.count / self.maxCount) * maxR
+                (x0, y0, x1, y1) = self.getCellBounds(row, col)
+                x = (x0 + x1) / 2
+                y = (y0 + y1) / 2
                 self.buttons.append(Button(x, y, r, currentPol))
-                polIndex += 1
+                # Break out of loop if no more politicians to create buttons for
+                if polIndex + 1 == len(self.app.politicians):
+                    break
+                else:
+                    polIndex += 1
+
+    # From 112 notes: 
+    # https://www.cs.cmu.edu/~112/notes/notes-animations-part1.html#exampleGrids 
+    # Returns (x0, y0, x1, y1) corners/bounding box of given cell in grid
+    def getCellBounds(self, row, col):
+        x0 = self.margin + col * self.cellWidth
+        x1 = x0 + self.cellWidth
+        y0 = self.topMargin + row * self.cellHeight
+        y1 = y0 + self.cellHeight
+        return (x0, y0, x1, y1)
 
     # Loop through buttons and draw them
     def drawButtons(self, canvas):
@@ -434,7 +512,6 @@ class PointMode(Mode):
                                text=tweetBox.header, anchor=W, 
                                font="Helvetica 16 bold")
             for i in range(len(tweetBox.display)):
-                # print(tweetBox.display[i].encode("unicode-escape"))
                 canvas.create_text(tweetBox.x0 + 10, tweetBox.y0 + 35 + i*20, 
                                    text=tweetBox.display[i].encode("unicode-escape"), anchor=W, 
                                    font="Helvetica 16")
@@ -576,6 +653,8 @@ class MyModalApp(ModalApp):
         app.tweetData = open("tweet_data.json").read()
         app.tweetDataJson = json.loads(app.tweetData)
         # app.updateJson()
+        app.next = None
+        app.back = None
 
         app.politicians = []
         app.date = None
@@ -608,6 +687,28 @@ class MyModalApp(ModalApp):
                 json.dump(updatedData, outfile)
         else:
             print("Nothing to update")
+
+    def makeArrows(app):
+        nextImage = app.loadImage("right-arrow.png")
+        backImage = app.loadImage("left-arrow.png")
+
+        margin = 25
+
+        # Image size implementation:
+        # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#imageSize
+        nextWidth, nextHeight = nextImage.size
+        nextX1 = app.width - margin
+        nextX0 = nextX1 - nextWidth
+        nextY1 = app.height - margin
+        nextY0 = nextY1 - nextHeight
+        app.next = Arrow(nextX0, nextY0, nextX1, nextY1, nextImage)
+
+        backWidth, backHeight = backImage.size
+        backX0 = margin
+        backX1 = backX0 + backWidth
+        backY0 = margin
+        backY1 = backY0 + backHeight
+        app.back = Arrow(backX0, backY0, backX1, backY1, backImage)
 
     # Returns list of tweets from a specified datetime
     def getTweetsFromDate(app, user, targetDate):
