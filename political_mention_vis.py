@@ -30,7 +30,7 @@ class StartMode(Mode):
         datePrompt = f"Enter a date from the past 100 days (after {start}) (YYYY-M-D):"
         strDate = self.getUserInput(datePrompt)
         if (strDate == None):
-            self.message = "You cancelled, press s to try again"
+            self.message = "You cancelled, click to try again"
         # Convert string date to datetime 
         try:
             # Referenced:
@@ -38,11 +38,11 @@ class StartMode(Mode):
             # https://stackoverflow.com/questions/19480028/attributeerror-datetime-module-has-no-attribute-strptime
             self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
         except ValueError as err:
-            self.message = "Wrong date formatting, press s to try again"
+            self.message = "Wrong date formatting, click to try again"
 
         self.app.keyword = self.getUserInput("Enter a search keyword:")
         if (self.app.keyword == None):
-            self.message = "You cancelled, press s to try again"
+            self.message = "You cancelled, click to try again"
 
         if self.app.date != None and self.app.keyword != None:
             self.app.setActiveMode(ChooseMode())
@@ -277,12 +277,13 @@ class ComparisonMode(Mode):
             # Draw buttons
             canvas.create_oval(x - r, y - r, x + r, y + r, fill=button.politician.party, width=0)
             # Draw politician name and count
-            canvas.create_text(x, y, text=button.politician.count, font="Helvetica 12")
-            canvas.create_text(x, y + 30, text=button.politician.name, font="Helvetica 12")
+            canvas.create_text(x, y, text=button.politician.count, font="Helvetica 14")
+            canvas.create_text(x, y + 30, text=button.politician.name, font="Helvetica 14")
 
     def redrawAll(self, canvas):
-        canvas.create_text(self.width/2, 20, 
-                           text=f"Frequencies of {self.app.keyword} since {self.app.date}",
+        formattedDate = self.app.date.date()
+        canvas.create_text(self.width/2, 30, 
+                           text=f"Mentions of \"{self.app.keyword}\" since {formattedDate}",
                            font="Helvetica 16 bold")
         self.drawButtons(canvas)
         self.app.drawBack(canvas)
@@ -397,7 +398,7 @@ class PlotMode(Mode):
             canvas.create_oval(x - 5, y - 5, x + 5, y + 5, fill="black")
             # Draw x label
             canvas.create_text(x, self.height - self.yMargin + 15, text=xLabel, 
-                            font="Helvetica 12")
+                            font="Helvetica 13")
             # Draw connecting line to next point, but only if not at last point
             if i != len(self.points) - 1:
                 x1 = self.points[i + 1].x
