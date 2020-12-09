@@ -53,6 +53,10 @@ class StartMode(Mode):
 
 class ChooseMode(Mode):
     def appStarted(self):
+        self.choices = [] # List of Choice objects
+        self.makeChoices()
+
+    def makeChoices(self):
         # 2d list of top Republicans and their Twitter usernames
         # Partially based on popular Republican Twitter users and this list:
         # https://today.yougov.com/ratings/politics/popularity/Republicans/all 
@@ -73,8 +77,6 @@ class ChooseMode(Mode):
                            ["Barack Obama", "BarackObama"],
                            ["Hillary Clinton", "HillaryClinton"]]
 
-        # List of Choice objects 
-        self.choices = []
         # Choice box width and height
         width = 300
         height = 50
@@ -91,7 +93,7 @@ class ChooseMode(Mode):
             y1 = y0 + height
 
             self.choices.append(Choice(republican[0], republican[1], "red", 
-                                       False, x0, y0, x1, y1))
+                                       x0, y0, x1, y1))
 
         for j in range(len(democraticUsers)):
             democrat = democraticUsers[j]
@@ -99,13 +101,27 @@ class ChooseMode(Mode):
             x1 = x0 + width
             y0 = totalMargin + (height + margin) * j
             y1 = y0 + height
-            self.choices.append(Choice(democrat[0], democrat[1], "blue", False, 
+            self.choices.append(Choice(democrat[0], democrat[1], "blue", 
                                        x0, y0, x1, y1))
+
+    def mousePressed(self, event):
+        # Loop through self.choices to see if they were clicked
+        for choice in self.choices:
+            if (event.x >= choice.x0 and event.x <= choice.x1 and
+                event.y >= choice.y0 and event.y <= choice.y1):
+                choice.clicked()
+
+    def keyPressed(self, event):
+        if event.key == "Enter":
+            self.app.setActiveMode(ComparisonMode())
+
 
     # Loop through self.choices and draw them
     def drawChoices(self, canvas):
         for choice in self.choices:
-            canvas.create_rectangle(choice.x0, choice.y0, choice.x1, choice.y1)
+            if choice.chosen: color = "grey"
+            else: color = "white"
+            canvas.create_rectangle(choice.x0, choice.y0, choice.x1, choice.y1,fill=color)
             x = (choice.x0 + choice.x1) / 2
             y = (choice.y0 + choice.y1) / 2
             canvas.create_text(x, y, text=choice.name, font="Helvetica 14")

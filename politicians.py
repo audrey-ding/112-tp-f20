@@ -3,15 +3,18 @@
 # A Choice has a name, Twitter username, party, boolean value chosen, 
 #   and position coords
 class Choice(object):
-    def __init__(self, name, username, party, chosen, x0, y0, x1, y1):
+    def __init__(self, name, username, party, x0, y0, x1, y1):
         self.name = name
         self.party = party # "red" or "blue"
         self.username = username # Twitter username
-        self.chosen = 0
+        self.chosen = False
         self.x0 = x0
         self.y0 = y0
         self.x1 = x1
         self.y1 = y1
+    
+    def clicked(self):
+        self.chosen = True
 
 # A Politician has a name, Twitter username, and party, and count of tweets
 class Politician(object):
