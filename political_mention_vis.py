@@ -43,7 +43,7 @@ class StartMode(Mode):
                 self.message = "Press enter to continue"
 
         if event.key == "Enter":
-            self.app.setActiveMode(ComparisonMode())
+            self.app.setActiveMode(ChooseMode())
 
     def redrawAll(self, canvas):
         canvas.create_text(self.width/2, self.height/2, text="Political Tweet Analyzer",
@@ -113,8 +113,17 @@ class ChooseMode(Mode):
 
     def keyPressed(self, event):
         if event.key == "Enter":
+            self.setPoliticians()
             self.app.setActiveMode(ComparisonMode())
 
+    def setPoliticians(self):
+        # Loop through self.choices to find chosen ones
+        for choice in self.choices:
+            # If chosen, create Politician and add to app.politicians
+            if choice.chosen:
+                self.app.politicians.append(Politician(choice.name, 
+                                                       choice.username, 
+                                                       choice.party))
 
     # Loop through self.choices and draw them
     def drawChoices(self, canvas):
@@ -127,39 +136,16 @@ class ChooseMode(Mode):
             canvas.create_text(x, y, text=choice.name, font="Helvetica 14")
 
     def redrawAll(self, canvas):
+        canvas.create_text(self.width/2, self.choices[0].y0 - 50,
+                           text="Click to choose politicians to compare",
+                           font="Helvetica 16 bold")
         self.drawChoices(canvas)
+
 
     
 class ComparisonMode(Mode):
     def appStarted(self):
         self.app.curPol = None
-
-        # 2d list of top Republicans and their Twitter usernames
-        # Partially based on popular Republican Twitter users and this list:
-        # https://today.yougov.com/ratings/politics/popularity/Republicans/all 
-        republicanUsers = [["Donald Trump", "realDonaldTrump"], 
-                           ["Mike Pence", "Mike_Pence"], 
-                           ["Ted Cruz", "tedcruz"],
-                           ["Mitch McConnell", "senatemajldr"],
-                           ["Lindsey Graham", "LindseyGrahamSC"],
-                           ["Donald Trump Jr.", "DonaldJTrumpJr"],]
-
-        # 2d list of top Democrats and their Twitter usernames
-        # Partially based on popular Democratic Twitter users and this list:
-        # https://today.yougov.com/ratings/politics/popularity/Democrats/all 
-        democraticUsers = [["Joe Biden", "JoeBiden"],
-                           ["Kamala Harris", "KamalaHarris"],
-                           ["Alexandria Ocasio-Cortez", "AOC"],
-                           ["Bernie Sanders", "BernieSanders"],
-                           ["Barack Obama", "BarackObama"],
-                           ["Hillary Clinton", "HillaryClinton"]]
-             
-        # List of Politician objects 
-        self.politicians = []
-        for republican in republicanUsers:
-            self.politicians.append(Politician(republican[0], republican[1], "red"))
-        for democrat in democraticUsers:
-            self.politicians.append(Politician(democrat[0], democrat[1], "blue"))
 
         self.getCounts()
         self.maxCount = self.greatestCount()
@@ -168,28 +154,28 @@ class ComparisonMode(Mode):
         self.makeButtons()
 
     def getCounts(self):
-        for politician in self.politicians:
+        for politician in self.app.politicians:
             tweets = self.app.getTweetsFromDate(politician.username, self.app.date)
             count = self.app.countKeywordTweets(self.app.keyword, tweets)
             politician.setCount(count)
 
     def greatestCount(self):
         maxCount = 0
-        for politician in self.politicians:
+        for politician in self.app.politicians:
             if politician.count > maxCount:
                 maxCount = politician.count
         return maxCount
 
-    def mousePressed(self, event):
-        for button in self.buttons:
-            if self.app.pointInCircle(event.x, event.y, button.x, button.y, 
-                                      button.r):
-                self.app.currPol = button.politician
-                self.app.setActiveMode(PlotMode())
-    
-    def keyPressed(self, event):
-        if event.key == "Delete":
-            self.app.setActiveMode(StartMode())
+        def mousePressed(self, event):
+            for button in self.buttons:
+                if self.app.pointInCircle(event.x, event.y, button.x, button.y, 
+                                        button.r):
+                    self.app.currPol = button.politician
+                    self.app.setActiveMode(PlotMode())
+        
+        def keyPressed(self, event):
+            if event.key == "Delete":
+                self.app.setActiveMode(StartMode())
 
     def makeButtons(self):
         cellWidth = int(self.width / 5)
@@ -197,7 +183,7 @@ class ComparisonMode(Mode):
         polIndex = 0
         for y in range(cellHeight, self.height, cellHeight):
             for x in range(cellWidth, self.width, cellWidth):
-                currentPol = self.politicians[polIndex]
+                currentPol = self.app.politicians[polIndex]
                 maxR = min(cellWidth, cellHeight) / 2
                 # No one mentioned, so no circle 
                 if self.maxCount == 0:
@@ -591,13 +577,14 @@ class MyModalApp(ModalApp):
         app.tweetDataJson = json.loads(app.tweetData)
         # app.updateJson()
 
+        app.politicians = []
         app.date = None
         app.keyword = None
         app.currPol = None
         app.currPoint = None
         app.currTweetBox = None
 
-        app.setActiveMode(ChooseMode())
+        app.setActiveMode(StartMode())
 
     # Updates JSON file, if necessary, to include newest tweets
     def updateJson(app):    
