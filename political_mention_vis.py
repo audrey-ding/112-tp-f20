@@ -388,8 +388,9 @@ class SimilarityMode(Mode):
         self.similarFromEntity("mention")
         self.similarFromWord()
 
-        self.tweetBox = None
-        self.makeTweetBox()
+        self.tweetBoxes = []
+        self.makeCurrTweetBox()
+        self.makeSimilarTweetBox()
     
     def keyPressed(self, event):
         if event.key == "Delete":
@@ -444,7 +445,22 @@ class SimilarityMode(Mode):
         elif word[:1].isupper() and word[1:].islower():
             return True
 
-    def makeTweetBox(self):
+    def makeCurrTweetBox(self):
+        # Account for margins
+        boxWidth = (self.app.maxCharCount(self.app.currTweetBox.display, 
+                    self.app.currTweetBox.header) * 7 + 20)
+        boxHeight = (len(self.app.currTweetBox.display) + 1) * 20 + 15 
+
+        x0 = self.width/2 - boxWidth/2
+        y0 = self.height/2 - boxHeight - 35 # 70 px margin between two boxes
+        x1 = self.width/2 + boxWidth/2
+        y1 = y0 + boxHeight
+
+        # Update position and append to list of TweetBoxes to draw later
+        self.app.currTweetBox.position(x0, y0, x1, y1)
+        self.tweetBoxes.append(self.app.currTweetBox)
+
+    def makeSimilarTweetBox(self):
         display = self.app.formatTweet(self.similarTweet[1])
 
         strDate = self.similarTweet[0]
@@ -456,32 +472,39 @@ class SimilarityMode(Mode):
         boxHeight = (len(display) + 1) * 20 + 15 # lines and header
 
         x0 = self.width/2 - boxWidth/2
-        y0 = self.height/2 - boxHeight/2
+        y0 = self.height/2 + 35 # 70 px margin between boxes
         x1 = self.width/2 + boxWidth/2
-        y1 = self.height/2 + boxHeight/2
+        y1 = y0 + boxHeight
         
-        self.tweetBox = TweetBox(x0, y0, x1, y1, self.similarTweet, display, header)
+        self.tweetBoxes.append(TweetBox(x0, y0, x1, y1, self.similarTweet, display, header))
 
-    def drawTweetBox(self, canvas):
-        canvas.create_rectangle(self.tweetBox.x0, self.tweetBox.y0, 
-                                self.tweetBox.x1, self.tweetBox.y1)
-
-        canvas.create_text(self.tweetBox.x0 + 10, self.tweetBox.y0 + 15, 
-                           text=self.tweetBox.header, anchor=W,
-                           font="Helvetica 16 bold")
-        
-        for i in range(len(self.tweetBox.display)):
-            canvas.create_text(self.tweetBox.x0 + 10, self.tweetBox.y0 + 35 + i*20, 
-                               text=self.tweetBox.display[i], anchor=W, 
-                               font="Helvetica 16")
+    def drawTweetBoxes(self, canvas):
+        # Loop through self.tweetBoxes and draw them
+        for tweetBox in self.tweetBoxes:
+            # Draw box
+            canvas.create_rectangle(tweetBox.x0, tweetBox.y0, 
+                                    tweetBox.x1, tweetBox.y1)
+            # Draw header
+            canvas.create_text(tweetBox.x0 + 10, tweetBox.y0 + 15, 
+                               text=tweetBox.header, anchor=W,
+                               font="Helvetica 16 bold")
+            # Draw formatted tweet by looping through display
+            for i in range(len(tweetBox.display)):
+                canvas.create_text(tweetBox.x0 + 10, tweetBox.y0 + 35 + i*20, 
+                                   text=tweetBox.display[i], anchor=W, 
+                                   font="Helvetica 16")
 
     def redrawAll(self, canvas):
-        self.drawTweetBox(canvas)
-        canvas.create_text(self.width/2, self.tweetBox.y0 - 25,
+        self.drawTweetBoxes(canvas)
+        # Header for curr tweet box
+        canvas.create_text(self.width/2, self.app.currTweetBox.y0 - 25,
+                           text="Clicked tweet", font="Helvetica 18 bold")
+        # Header for similar tweet box (2nd elem in self.tweetBoxes)
+        canvas.create_text(self.width/2, self.tweetBoxes[1].y0 - 25,
                            text="Similar tweet", font="Helvetica 18 bold")
+
         canvas.create_text(self.width/2, self.height - 25,
                            text="Press delete to go back", font="Helvetica 14")
-
 
 class MyModalApp(ModalApp):
     def appStarted(app):
