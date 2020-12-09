@@ -31,14 +31,15 @@ class StartMode(Mode):
         strDate = self.getUserInput(datePrompt)
         if (strDate == None):
             self.message = "You cancelled, click to try again"
-        # Convert string date to datetime 
-        try:
-            # Referenced:
-            # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
-            # https://stackoverflow.com/questions/19480028/attributeerror-datetime-module-has-no-attribute-strptime
-            self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
-        except ValueError as err:
-            self.message = "Wrong date formatting, click to try again"
+        else:
+            # Convert string date to datetime 
+            try:
+                # Referenced:
+                # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+                # https://stackoverflow.com/questions/19480028/attributeerror-datetime-module-has-no-attribute-strptime
+                self.app.date = datetime.datetime.strptime(strDate, "%Y-%m-%d")
+            except ValueError as err:
+                self.message = "Wrong date formatting, click to try again"
 
         self.app.keyword = self.getUserInput("Enter a search keyword:")
         if (self.app.keyword == None):
@@ -46,11 +47,7 @@ class StartMode(Mode):
 
         if self.app.date != None and self.app.keyword != None:
             self.app.setActiveMode(ChooseMode())
-        
-    
-    # From 112 notes: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
-    def rgbString(self, r, g, b):
-        return f'#{r:02x}{g:02x}{b:02x}'
+
 
     def redrawAll(self, canvas):
         # Image implentation from
@@ -275,10 +272,18 @@ class ComparisonMode(Mode):
             y = button.y
             r = button.r
             # Draw buttons
-            canvas.create_oval(x - r, y - r, x + r, y + r, fill=button.politician.party, width=0)
+            if button.politician.party == "red":
+                color = self.rgbString(229, 101, 101) # more muted red
+            else:
+                color = self.rgbString(118, 156, 188) # more muted blue
+            canvas.create_oval(x - r, y - r, x + r, y + r, fill=color, width=0)
             # Draw politician name and count
             canvas.create_text(x, y, text=button.politician.count, font="Helvetica 14")
             canvas.create_text(x, y + 30, text=button.politician.name, font="Helvetica 14")
+
+    # From 112 notes: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
+    def rgbString(self, r, g, b):
+        return f'#{r:02x}{g:02x}{b:02x}'
 
     def redrawAll(self, canvas):
         formattedDate = self.app.date.date()
@@ -287,6 +292,9 @@ class ComparisonMode(Mode):
                            font="Helvetica 16 bold")
         self.drawButtons(canvas)
         self.app.drawBack(canvas)
+        canvas.create_text(self.width/2, self.height - 30, 
+                           text="Click on a button for mention trends", 
+                           font="Helvetica 16")
         
 
 class PlotMode(Mode):
@@ -386,8 +394,8 @@ class PlotMode(Mode):
 
     def drawPlot(self, canvas):
         # Draw yLabel on y axis
-        canvas.create_text(self.xMargin - 10, self.yMargin, text=self.yLabel, 
-                           font="Helvetica 12")
+        canvas.create_text(self.xMargin - 12, self.yMargin, text=self.yLabel, 
+                           font="Helvetica 14")
 
         # Loop through Points, draw dots, draw x labels, and draw lines
         for i in range(len(self.points)):
@@ -563,7 +571,7 @@ class PointMode(Mode):
         canvas.create_image(downX, downY, image=ImageTk.PhotoImage(self.down.image))
 
     def redrawAll(self, canvas):
-        canvas.create_text(self.width/2, self.height + 20, 
+        canvas.create_text(self.width/2, 20, 
                            text="Click on a tweet to see a similar tweet",
                            font="Helvetica 16")
         self.drawTweetBoxes(canvas)
@@ -705,7 +713,7 @@ class MyModalApp(ModalApp):
     def appStarted(app):
         app.tweetData = open("tweet_data.json").read()
         app.tweetDataJson = json.loads(app.tweetData)
-        # app.updateJson()
+        app.updateJson()
         app.next = None
         app.back = None
 
@@ -732,8 +740,9 @@ class MyModalApp(ModalApp):
             for key in app.tweetDataJson:
                 if key != "scrapeDate":
                     # Scrape from last updated date
-                    newTweets = getTweets("user", key, lastUpdated)
-                    oldTweets = app.tweetDataJson[user] # old tweets from the file
+                    d = lastUpdated.date() # cast to date obj for snscrape
+                    newTweets = getTweets("user", key, d)
+                    oldTweets = app.tweetDataJson[key] # old tweets from the file
                     total = newTweets + oldTweets # combine new and old
                     updatedData[key] = total
             with open("tweet_data.json", "w") as outfile:

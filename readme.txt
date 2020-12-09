@@ -1,0 +1,5 @@
+Description: Political Tweet Analyzer compares and visualizes the frequency at which major politicians from both parties mention a specified keyword. The user can choose a specific politician to see the individual trends (of mentioning the keyword) and see similar tweets relating to the politician's tweets about the keyboard.
+
+To run: Run the app by running main.py; it calls the graphics file. If you have Twitter API keys, input them into twitter_auth_data.json so you can update the json file with updateJson() in political_mention_vis.py. If you don't, comment updateJson() out because you can't access Twitter API without auth keys.
+
+External libraries and modules: snscrape and Tweepy are used for live scraping; however, if you don't wish to live scrape via updateJson() and you are content with using just the pre-scraped data in tweet_data.json, you don't need to download the modules.

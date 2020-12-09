@@ -48,11 +48,16 @@ def getTweets(userOrSearch, query, since):
         # https://www.saltycrane.com/blog/2008/09/how-get-stdout-and-stderr-using-python-subprocess-module/
         # Runs command line
         cmd = f"snscrape --since {since} twitter-{userOrSearch} {query}" 
+        print(cmd)
         p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True) 
         i = 0
         for line in p.stdout:
+            # Break out of loop if no output
+            if line == "":
+                break
             # Discard front part of URL
             temp = line.decode().split("status/")
+            print(temp)
             tempStr = temp[1]
             tweetID = tempStr[:-1]
             while True:
