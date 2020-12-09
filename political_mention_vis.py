@@ -281,6 +281,9 @@ class ComparisonMode(Mode):
             canvas.create_text(x, y + 30, text=button.politician.name, font="Helvetica 12")
 
     def redrawAll(self, canvas):
+        canvas.create_text(self.width/2, 20, 
+                           text=f"Frequencies of {self.app.keyword} since {self.app.date}",
+                           font="Helvetica 16 bold")
         self.drawButtons(canvas)
         self.app.drawBack(canvas)
         
@@ -425,12 +428,37 @@ class NoPointMode(Mode):
 class PointMode(Mode):
     def appStarted(self):
         self.app.makeBack()
+        self.up = None
+        self.down = None
+        self.makeUpDown()
 
         self.shift = 0
         self.tweets = self.app.currPoint.tweets # simpler variable to look at
         self.tweetBoxes = [] # list of TweetBoxes
         self.makeTweetBoxes()
         self.positionTweetBoxes()
+
+    # Make up and down Arrows
+    def makeUpDown(self):
+        # Image from https://thenounproject.com/term/up-button/1384177/ 
+        # Same images, just flipped
+        down = self.loadImage("down-arrow.png")
+        up = self.loadImage("up-arrow.png")
+        margin = 15
+        width, height = down.size # images have same size
+
+        downX1 = self.width - margin
+        downX0 = downX1 - width
+        downY1 = self.height - margin
+        downY0 = downY1 - height
+        self.down = Arrow(downX0, downY0, downX1, downY1, down)
+
+        upX1 = downX1
+        upX0 = downX0
+        upY1 = downY0 - margin/2 
+        upY0 = upY1 - height
+        self.up = Arrow(upX0, upY0, upX1, upY1, up)
+
 
     def timerFired(self):
         self.positionTweetBoxes()
@@ -448,18 +476,20 @@ class PointMode(Mode):
               event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
             self.app.setActiveMode(PlotMode())
 
-    def keyPressed(self, event):
-        if event.key == "Delete":
-            self.app.setActiveMode(PlotMode())
-        elif event.key == "Down":
-            # Can't scroll down if no more boxes
+        # If down arrow clicked, scroll down
+        if (event.x >= self.down.x0 and event.x <= self.down.x1 and
+            event.y >= self.down.y0 and event.y <= self.down.y1):
+            # Only scroll down if there are more boxes below
             if self.shift + 1 <= len(self.tweetBoxes):
                 self.shift += 1
-        elif event.key == "Up":
-            # Can't scroll up if displaying first box
-            if self.shift -1 >= 0:
-                self.shift -= 1
 
+        # If up arrow clicked, scroll up
+        if (event.x >= self.up.x0 and event.x <= self.up.x1 and
+            event.y >= self.up.y0 and event.y <= self.up.y1):
+            # Only scroll up if there are more boxes above
+            if self.shift -1 >= 0:
+                self.shift -= 1        
+        
     # Create TweetBox objects with display, header, and coords=0
     def makeTweetBoxes(self):
         for tweet in self.tweets:
@@ -481,9 +511,9 @@ class PointMode(Mode):
 
             x0 = self.width/2 - boxWidth/2
             x1 = self.width/2 + boxWidth/2
-            # First tweet box, leave a margin of 20px
+            # First tweet box, leave a margin of 50px
             if i == self.shift:
-                y0 = 20
+                y0 = 50
             # Other tweet box y position depends on previous tweet box
             else: 
                 y0 = self.tweetBoxes[i - 1].y1 + 20 # 20px margin 
@@ -522,9 +552,22 @@ class PointMode(Mode):
                                    text=tweetBox.display[i].encode("unicode-escape"), anchor=W, 
                                    font="Helvetica 16")
 
+    def drawUpDown(self, canvas):
+        upX = (self.up.x0 + self.up.x1) / 2
+        upY = (self.up.y0 + self.up.y1) / 2
+        canvas.create_image(upX, upY, image=ImageTk.PhotoImage(self.up.image))
+
+        downX = (self.down.x0 + self.down.x1) / 2
+        downY = (self.down.y0 + self.down.y1) / 2
+        canvas.create_image(downX, downY, image=ImageTk.PhotoImage(self.down.image))
+
     def redrawAll(self, canvas):
+        canvas.create_text(self.width/2, self.height + 20, 
+                           text="Click on a tweet to see a similar tweet",
+                           font="Helvetica 16")
         self.drawTweetBoxes(canvas)
         self.app.drawBack(canvas)
+        self.drawUpDown(canvas)
 
 class SimilarityMode(Mode):
     def appStarted(self):
