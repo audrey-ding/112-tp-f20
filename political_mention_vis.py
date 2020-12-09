@@ -62,7 +62,8 @@ class StartMode(Mode):
 
 class ChooseMode(Mode):
     def appStarted(self):
-        self.app.makeArrows()
+        self.app.makeNext()
+        self.app.makeBack()
 
         self.app.politicians = [] # reset
         self.choices = [] # List of Choice objects
@@ -143,16 +144,6 @@ class ChooseMode(Mode):
                                                        choice.username, 
                                                        choice.party))
 
-    # Draw next and back arrows
-    def drawArrows(self, canvas):
-        nextX = (self.app.next.x0 + self.app.next.x1) / 2
-        nextY = (self.app.next.y0 + self.app.next.y1) / 2
-        canvas.create_image(nextX, nextY, image=ImageTk.PhotoImage(self.app.next.image))
-
-        backX = (self.app.back.x0 + self.app.back.x1) / 2
-        backY = (self.app.back.y0 + self.app.back.y1) / 2
-        canvas.create_image(backX, backY, image=ImageTk.PhotoImage(self.app.back.image))
-
     # Loop through self.choices and draw them
     def drawChoices(self, canvas):
         for choice in self.choices:
@@ -167,11 +158,14 @@ class ChooseMode(Mode):
         canvas.create_text(self.width/2, self.choices[0].y0 - 50,
                            text="Click to choose politicians to compare",
                            font="Helvetica 16 bold")
-        self.drawArrows(canvas)
+        self.app.drawNext(canvas)
+        self.app.drawBack(canvas)
         self.drawChoices(canvas)
     
 class ComparisonMode(Mode):
     def appStarted(self):
+        self.app.makeBack()
+        
         self.app.curPol = None
 
         self.getCounts()
@@ -196,10 +190,12 @@ class ComparisonMode(Mode):
                                         button.r):
                 self.app.currPol = button.politician
                 self.app.setActiveMode(PlotMode())
-        
-    def keyPressed(self, event):
-        if event.key == "Delete":
+
+        # If back arrow clicked, go back to Choose Mode
+        if (event.x >= self.app.back.x0 and event.x <= self.app.back.x1 and
+              event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
             self.app.setActiveMode(ChooseMode())
+        
 
     def getCounts(self):
         for politician in self.app.politicians:
@@ -286,12 +282,13 @@ class ComparisonMode(Mode):
 
     def redrawAll(self, canvas):
         self.drawButtons(canvas)
-        canvas.create_text(self.width / 2, self.height - 25, 
-                           text="Press delete to go back", font="Helvetica 12")
-
+        self.app.drawBack(canvas)
+        
 
 class PlotMode(Mode):
     def appStarted(self):
+        self.app.makeBack()
+
         self.points = [] # list of Points
         self.counts = [] # list of counts for 5-day increments
         self.calculateCounts()
@@ -363,11 +360,10 @@ class PlotMode(Mode):
                 else:
                     self.app.currPoint = point
                     self.app.setActiveMode(PointMode())
-
-    def keyPressed(self, event):
-        if event.key == "Enter":
-            self.app.setActiveMode(SimilarityMode())
-        if event.key == "Delete":
+        
+        # If back arrow clicked, go back to Comparison Mode
+        if (event.x >= self.app.back.x0 and event.x <= self.app.back.x1 and
+              event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
             self.app.setActiveMode(ComparisonMode())
 
     def drawFramework(self, canvas):
@@ -408,23 +404,28 @@ class PlotMode(Mode):
     def redrawAll(self, canvas):
         self.drawFramework(canvas)
         self.drawPlot(canvas)
-        canvas.create_text(self.width/2, self.height - 25, 
-                           text="Press delete to go back",
-                           font="Helvetica 14")
+        self.app.drawBack(canvas)
 
 class NoPointMode(Mode):
-    def keyPressed(self, event):
-        if event.key == "Delete":
-            self.app.setActiveMode(PlotMode())
+    def appStarted(self):
+        self.app.makeBack()
+
+    def mousePressed(self, event):
+        # If back arrow clicked, go back to Comparison Mode
+        if (event.x >= self.app.back.x0 and event.x <= self.app.back.x1 and
+              event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
+            self.app.setActiveMode(ComparisonMode())
 
     def redrawAll(self, canvas):
         canvas.create_text(self.width/2, self.height/2, text="No tweets to show",
                            font="Helvetica 16")
-        canvas.create_text(self.width/2, self.height - 25,
-                           text="Press delete to go back", font="Helvetica 14")
+        self.app.drawBack(canvas)
+
     
 class PointMode(Mode):
     def appStarted(self):
+        self.app.makeBack()
+
         self.shift = 0
         self.tweets = self.app.currPoint.tweets # simpler variable to look at
         self.tweetBoxes = [] # list of TweetBoxes
@@ -441,6 +442,11 @@ class PointMode(Mode):
                 event.y >= tweetBox.y0 and event.y <= tweetBox.y1):
                 self.app.currTweetBox = tweetBox 
                 self.app.setActiveMode(SimilarityMode())
+
+        # If back arrow clicked, go back to Plot Mode
+        if (event.x >= self.app.back.x0 and event.x <= self.app.back.x1 and
+              event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
+            self.app.setActiveMode(PlotMode())
 
     def keyPressed(self, event):
         if event.key == "Delete":
@@ -518,11 +524,12 @@ class PointMode(Mode):
 
     def redrawAll(self, canvas):
         self.drawTweetBoxes(canvas)
-        canvas.create_text(self.width/2, self.height - 25,
-                           text="Press delete to go back", font="Helvetica 14")
+        self.app.drawBack(canvas)
 
 class SimilarityMode(Mode):
     def appStarted(self):
+        self.app.makeBack()
+
         self.tweets = self.app.tweetDataJson[self.app.currPol.username]
         self.similarTweet = None
         
@@ -533,9 +540,11 @@ class SimilarityMode(Mode):
         self.tweetBoxes = []
         self.makeCurrTweetBox()
         self.makeSimilarTweetBox()
-    
-    def keyPressed(self, event):
-        if event.key == "Delete":
+
+    def mousePressed(self, event):
+        # If back arrow clicked, go back to Point Mode
+        if (event.x >= self.app.back.x0 and event.x <= self.app.back.x1 and
+              event.y >= self.app.back.y0 and event.y <= self.app.back.y1):
             self.app.setActiveMode(PointMode())
         
     # Find tweets that match app.currTweetBox's entities
@@ -645,8 +654,7 @@ class SimilarityMode(Mode):
         canvas.create_text(self.width/2, self.tweetBoxes[1].y0 - 25,
                            text="Similar tweet", font="Helvetica 18 bold")
 
-        canvas.create_text(self.width/2, self.height - 25,
-                           text="Press delete to go back", font="Helvetica 14")
+        self.app.drawBack(canvas)
 
 class MyModalApp(ModalApp):
     def appStarted(app):
@@ -688,10 +696,9 @@ class MyModalApp(ModalApp):
         else:
             print("Nothing to update")
 
-    def makeArrows(app):
+    # Make next Arrow
+    def makeNext(app):
         nextImage = app.loadImage("right-arrow.png")
-        backImage = app.loadImage("left-arrow.png")
-
         margin = 25
 
         # Image size implementation:
@@ -703,12 +710,29 @@ class MyModalApp(ModalApp):
         nextY0 = nextY1 - nextHeight
         app.next = Arrow(nextX0, nextY0, nextX1, nextY1, nextImage)
 
+    # Make back Arrow
+    def makeBack(app):
+        backImage = app.loadImage("left-arrow.png")
+        margin = 25
+
         backWidth, backHeight = backImage.size
         backX0 = margin
         backX1 = backX0 + backWidth
         backY0 = margin
         backY1 = backY0 + backHeight
         app.back = Arrow(backX0, backY0, backX1, backY1, backImage)
+
+    # Draw next arrow image
+    def drawNext(app, canvas):
+        nextX = (app.next.x0 + app.next.x1) / 2
+        nextY = (app.next.y0 + app.next.y1) / 2
+        canvas.create_image(nextX, nextY, image=ImageTk.PhotoImage(app.next.image))
+
+    # Draw back arrow image
+    def drawBack(app, canvas):
+        backX = (app.back.x0 + app.back.x1) / 2
+        backY = (app.back.y0 + app.back.y1) / 2
+        canvas.create_image(backX, backY, image=ImageTk.PhotoImage(app.back.image))
 
     # Returns list of tweets from a specified datetime
     def getTweetsFromDate(app, user, targetDate):
