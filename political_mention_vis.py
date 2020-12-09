@@ -455,7 +455,7 @@ class PointMode(Mode):
 
         upX1 = downX1
         upX0 = downX0
-        upY1 = downY0 - margin/2 
+        upY1 = downY0 
         upY0 = upY1 - height
         self.up = Arrow(upX0, upY0, upX1, upY1, up)
 
@@ -626,7 +626,8 @@ class SimilarityMode(Mode):
                     maxCounts = currCount
         
         newKeywordTweets = self.app.getKeywordTweets(maxWord, self.tweets)
-        self.similarTweet = self.app.getRandomElement(newKeywordTweets)
+        if self.app.currTweetBox.tweet != self.similarTweet:
+            self.similarTweet = self.app.getRandomElement(newKeywordTweets)
 
     def potentialKeyword(self, word):
         # Articles, prepositions, and other filler words are usually short
